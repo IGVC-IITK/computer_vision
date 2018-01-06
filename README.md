@@ -11,16 +11,16 @@
 ![7(hysteresis)](7(hysteresis).png) | ![7(masker)](7(masker).bmp)
 
 
-#Masker.cpp 
+# Masker.cpp 
 Hardcode the mask of an image obtained from prediction from train.py , and it outputs a binary image based on te mask
 
-#Hysterisis.cpp 
+# Hysterisis.cpp 
 Takes input Hvalue , Lvalue and Value as threshold and oututs a binary image , it is used for generating optimum Hysterisis Values that can be further utilised for generating features (RGB values of centre and all neighbouring superpixels) .
 
-#rgb-gen.cpp
+# rgb-gen.cpp
 Takes input all Hysterisis values and outputs all features (9 features) with labels (576 lines for 750 superpixels) 
 
-#demo-for-imgs.cpp
+# demo-for-imgs.cpp
 Outputs a simple averaged segemnted image and saves it in the same directory as the build folder.
 
 This is the software bundle "gSLICr", a library for real-time superpixel segmentation written in C++ and CUDA. The current version is maintained by:
