@@ -2,6 +2,9 @@
 
 | ![7](7.png) | ![sample](sample.bmp) |
 
+7           |  sample
+:-------------------------:|:-------------------------:
+![7](7.png) | ![sample](sample.bmp)
 This is the software bundle "gSLICr", a library for real-time superpixel segmentation written in C++ and CUDA. The current version is maintained by:
 
   [Carl Yuheng Ren](http://www.carlyuheng.com/) : <carl@robots.ox.ac.uk>  
