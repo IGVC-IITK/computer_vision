@@ -2,17 +2,19 @@
 
 
 
-7           |  7(demo-for-imgs)
+7                          |  7(demo-for-imgs)
 :-------------------------:|:-------------------------:
-![7](7.png) | ![7(demo-for-imgs)](7(demo-for-imgs).png)
+![7](7.png)                | ![7(demo-for-imgs)](7(demo-for-imgs).png)
 
-7(hysteresis)           |  7(masker)
-:-------------------------:|:-------------------------:
-![7(hysteresis)](7(hysteresis).png) | ![7(masker)](7(masker).png)
+7(hysteresis)                       |  7(masker)
+:----------------------------------:|:-------------------------:
+![7(hysteresis)](7(hysteresis).png) | ![7(masker)](7(masker).bmp)
 
 
 
 ![sample](sample.bmp)
+
+
 This is the software bundle "gSLICr", a library for real-time superpixel segmentation written in C++ and CUDA. The current version is maintained by:
 
   [Carl Yuheng Ren](http://www.carlyuheng.com/) : <carl@robots.ox.ac.uk>  
