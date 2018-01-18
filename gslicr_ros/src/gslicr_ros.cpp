@@ -2,27 +2,26 @@
 
 #include <time.h>
 #include <stdio.h>
+#include <stdint.h>
 
 #include "gSLICr_Lib/gSLICr.h"
 #include "NVTimer.h"
 
-#include "opencv2/highgui/highgui.hpp"
 #include "opencv2/core/core.hpp"
+#include "opencv2/highgui/highgui.hpp"
 #include "opencv2/opencv.hpp"
 
 #include "ros/ros.h"
 
 #include <cv_bridge/cv_bridge.h>
+#include <image_transport/image_transport.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
-#include <image_transport/image_transport.h>
+#include <std_msgs/UInt16MultiArray.h>
 
 #include <boost/make_shared.hpp>
 
 using namespace std;
-
-cv::Mat oldFrame;
-string img_frame_id = "camera";
 
 void load_image(const cv::Mat& inimg, gSLICr::UChar4Image* outimg)
 {
@@ -52,9 +51,9 @@ void load_image(const gSLICr::UChar4Image* inimg, cv::Mat& outimg)
 		}
 }
 
-void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage)
+void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, gSLICr::UChar4Image* outimg, cv::Size s, string& frame_id)
 {
-	img_frame_id = imgMessage->header.frame_id;
+	frame_id = imgMessage->header.frame_id;	// for assigning the correct frame_id to the published images
 	cv_bridge::CvImagePtr cv_ptr;
     try
     {
@@ -65,7 +64,19 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage)
       ROS_ERROR("cv_bridge exception: %s", e.what());
       return;
     }
-    oldFrame = cv_ptr->image;
+    cv::Mat inimg;
+    cv::resize(cv_ptr->image, inimg, s);
+
+	gSLICr::Vector4u* outimg_ptr = outimg->GetData(MEMORYDEVICE_CPU);
+
+	for (int y = 0; y < outimg->noDims.y;y++)
+		for (int x = 0; x < outimg->noDims.x; x++)
+		{
+			int idx = x + y * outimg->noDims.x;
+			outimg_ptr[idx].b = inimg.at<cv::Vec3b>(y, x)[0];
+			outimg_ptr[idx].g = inimg.at<cv::Vec3b>(y, x)[1];
+			outimg_ptr[idx].r = inimg.at<cv::Vec3b>(y, x)[2];
+		}
 }
 
 sensor_msgs::ImagePtr imageToROSmsg(cv::Mat img, const std::string encodingType, std::string frameId, ros::Time t)
@@ -103,9 +114,6 @@ int main(int argc, char **argv)
 	ros::init(argc, argv, "gslicr_ros_node");
 	ros::NodeHandle nh;
 	ros::Time t;
-	image_transport::ImageTransport it_gslicr(nh);
-	image_transport::Subscriber sub_img = it_gslicr.subscribe("cv_camera/image_raw", 1, imageCallback);
-	image_transport::Publisher pub_seg = it_gslicr.advertise("gslicr/segmentation", 1);
 
 	// gSLICr settings
 	gSLICr::objects::settings my_settings;
@@ -115,8 +123,8 @@ int main(int argc, char **argv)
 	my_settings.spixel_size = 16;
 	my_settings.coh_weight = 0.6f;
 	my_settings.no_iters = 5;
-	my_settings.color_space = gSLICr::XYZ; // gSLICr::CIELAB for Lab, or gSLICr::RGB for RGB
-	my_settings.seg_method = gSLICr::GIVEN_SIZE; // or gSLICr::GIVEN_NUM for given number
+	my_settings.color_space = gSLICr::CIELAB; // gSLICr::CIELAB for Lab, or gSLICr::RGB for RGB
+	my_settings.seg_method = gSLICr::GIVEN_NUM; // or gSLICr::GIVEN_NUM for given number
 	my_settings.do_enforce_connectivity = true; // whether or not run the enforce connectivity step
 
 	// instantiate a core_engine
@@ -126,30 +134,35 @@ int main(int argc, char **argv)
 	gSLICr::UChar4Image* in_img = new gSLICr::UChar4Image(my_settings.img_size, true, true);
 	gSLICr::UChar4Image* out_img = new gSLICr::UChar4Image(my_settings.img_size, true, true);
 
-	cv::Size s(my_settings.img_size.x, my_settings.img_size.y);
-	cv::Mat frame;
-	cv::Size inputSize(640, 480);
-	oldFrame.create(inputSize, CV_8UC3);
-	cv::Mat boundry_draw_frame; boundry_draw_frame.create(s, CV_8UC3);
-
+	cv::Size outputSize(my_settings.img_size.x, my_settings.img_size.y);
+	string frame_id = "camera";
+	cv::Mat boundary_draw_frame; boundary_draw_frame.create(outputSize, CV_8UC3);
 	StopWatchInterface *my_timer; sdkCreateTimer(&my_timer);
+	std_msgs::UInt16MultiArray labels;
+	labels.data.resize(my_settings.img_size.x*my_settings.img_size.y);
+
+	image_transport::ImageTransport it_gslicr(nh);
+	image_transport::Subscriber sub_img = it_gslicr.subscribe("/cv_camera/image_raw", 1, boost::bind(imageCallback, _1, in_img, outputSize, frame_id));
+	image_transport::Publisher pub_bd = it_gslicr.advertise("/gslicr/boundaries", 1);
+	image_transport::Publisher pub_avg = it_gslicr.advertise("/gslicr/averages", 1);
+	ros::Publisher pub_seg = nh.advertise<std_msgs::UInt16MultiArray>("/gslicr/segmentation", 1);
 	
 	ros::Rate loop_rate(60);
 	while (ros::ok())
 	{
 		ros::spinOnce();
-		cv::resize(oldFrame, frame, s);
-		
-		load_image(frame, in_img);
 		sdkResetTimer(&my_timer); sdkStartTimer(&my_timer);
 		gSLICr_engine->Process_Frame(in_img);
 		sdkStopTimer(&my_timer); 
 		// cout<<"\rsegmentation in:["<<sdkGetTimerValue(&my_timer)<<"]ms"<<flush;
 		
 		gSLICr_engine->Draw_Segmentation_Result(out_img);
-		load_image(out_img, boundry_draw_frame);
+		load_image(out_img, boundary_draw_frame);
 		t = ros::Time::now();
-		pub_seg.publish(imageToROSmsg(boundry_draw_frame, sensor_msgs::image_encodings::BGR8, img_frame_id, t));
+		pub_bd.publish(imageToROSmsg(boundary_draw_frame, sensor_msgs::image_encodings::BGR8, frame_id, t));
+
+		gSLICr_engine->Write_Seg_Res_To_Array(labels.data);
+		pub_seg.publish(labels);
 
 		loop_rate.sleep();
 	}

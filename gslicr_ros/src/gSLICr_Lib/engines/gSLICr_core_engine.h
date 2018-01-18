@@ -2,7 +2,9 @@
 
 #pragma once
 #include "gSLICr_seg_engine_GPU.h"
+#include <vector>
 
+using namespace std;
 
 namespace gSLICr
 {
@@ -29,7 +31,7 @@ namespace gSLICr
 			void Draw_Segmentation_Result(UChar4Image* out_img);
 
 			// Write the segmentation result to an Array
-			void Write_Seg_Res_To_Array(int *lable_array);
+			void Write_Seg_Res_To_Array(vector<short unsigned int>& lable_array);
 
 		};
 	}

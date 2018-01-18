@@ -1,10 +1,9 @@
 // Copyright 2014-2015 Isis Innovation Limited and the authors of gSLICr
 
 #pragma once
-#include <iostream>
+#include <vector>
 
 #include "gSLICr_core_engine.h"
-#include <fstream>
 
 using namespace gSLICr;
 using namespace std;
@@ -34,7 +33,7 @@ void gSLICr::engines::core_engine::Draw_Segmentation_Result(UChar4Image* out_img
 	slic_seg_engine->Draw_Segmentation_Result(out_img);
 }
 
-void gSLICr::engines::core_engine::Write_Seg_Res_To_Array(int *lable_array)
+void gSLICr::engines::core_engine::Write_Seg_Res_To_Array(vector<short unsigned int>& lable_array)
 {
 	const IntImage* idx_img = slic_seg_engine->Get_Seg_Mask();
 	int width = idx_img->noDims.x;
