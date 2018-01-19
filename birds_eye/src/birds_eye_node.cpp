@@ -35,11 +35,20 @@ int main(int argc, char* argv[])
 {
   ofstream out("~/.ros/top_view.txt");
 
-  ros::init(argc, argv, "bird_view");
+  ros::init(argc, argv, "birds_eye_node");
+
   ros::NodeHandle nh;
+  std::string image_topic;
+  if (argc < 2)
+  {
+      cerr << endl << "Usage: rosrun birds_eye birds_eye_node [image_topic:=/input/topic] board_w board_h" << endl;        
+      ros::shutdown();
+      return 1;
+  }
+
   cv::Mat image;
   image_transport::ImageTransport it_bird(nh);
-  image_transport::Subscriber sub_img = it_bird.subscribe("/cv_camera/image_raw", 1, boost::bind(imageCallback, _1, boost::ref(image)));
+  image_transport::Subscriber sub_img = it_bird.subscribe("/image_topic", 1, boost::bind(imageCallback, _1, boost::ref(image)));
 
   int board_w = atoi(argv[1]);
   int board_h = atoi(argv[2]);
@@ -52,7 +61,6 @@ int main(int argc, char* argv[])
   float Z = 1; //have experimented from values as low as .1 and as high as 100
   int key = 0;
 
-  int loop_count = 0;
   ros::Rate loop_rate(1);
   while (ros::ok())
   {
