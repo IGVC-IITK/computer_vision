@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+	<include file="$(find razor_imu_9dof)/launch/razor-pub.launch"/>
+	<include file="$(find zed_wrapper)/launch/display.launch"/>
+	<remap from = "/obstacle_free_image" to = "/zed/obstacle"/>
+	<node pkg = "top_view" type = "top_view_node" name = "top_view_node"/>
+	<node pkg="classifier" type="master" name="master" />
+	<node pkg="masker" type="masker_node" name="masker_node" />
+	<node pkg="image_view" type="image_view" name="image_view" respawn="false" output="screen">
+	<remap from="image" to="/final_image" />
+	</node>
+</launch>

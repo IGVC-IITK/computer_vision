@@ -147,7 +147,7 @@ int main(int argc, char **argv)
 	labels.data.resize(my_settings.img_size.x*my_settings.img_size.y);
 
 	image_transport::ImageTransport it_gslicr(nh);
-	image_transport::Subscriber sub_img = it_gslicr.subscribe("/cv_camera/image_raw", 1, boost::bind(imageCallback, _1, boost::ref(frame), in_img, boost::ref(outputSize), boost::ref(frame_id)));
+	image_transport::Subscriber sub_img = it_gslicr.subscribe("/top_view", 1, boost::bind(imageCallback, _1, boost::ref(frame), in_img, boost::ref(outputSize), boost::ref(frame_id)));
 	image_transport::Publisher pub_bd = it_gslicr.advertise("/gslicr/boundaries", 1);
 	// image_transport::Publisher pub_resize = it_gslicr.advertise("/gslicr/resize", 1);
 	image_transport::Publisher pub_avg = it_gslicr.advertise("/gslicr/averages", 1);
