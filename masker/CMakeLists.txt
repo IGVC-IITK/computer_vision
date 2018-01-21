@@ -9,6 +9,7 @@ cv_bridge image_transport
   rospy
   sensor_msgs
   std_msgs
+  message_generation
 )
 
  generate_messages(
