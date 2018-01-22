@@ -201,6 +201,7 @@ int main(int argc,char **argv)
     image_transport::Publisher pub_avg = it_gslicr.advertise("/final_image", 1);
 
     // get mask from callback function and averaged image (27X27)
+    ros::Rate loop_rate(30);
     while(ros::ok())
     {
         ros::spinOnce();
@@ -243,7 +244,8 @@ int main(int argc,char **argv)
 
 
     pub_avg.publish(imageToROSmsg(M1, sensor_msgs::image_encodings::BGR8, frame_id, t));
+    loop_rate.sleep();
 
-}
+	}
  return 0;
 }
