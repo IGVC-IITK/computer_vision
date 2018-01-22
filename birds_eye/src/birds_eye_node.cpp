@@ -92,7 +92,6 @@ int main(int argc, char* argv[])
   imgPts[3] = corners.at((board_h-1) * board_w + board_w-1);
   center.x= (imgPts[0].x+imgPts[1].x+imgPts[2].x+imgPts[3].x)/4;
   center.y= (imgPts[0].y+imgPts[1].y+imgPts[2].y+imgPts[3].y)/4;
-  // center /= 4;
 
 
   int q1,q2,q3,q4;
@@ -116,19 +115,14 @@ int main(int argc, char* argv[])
     }
   }
   
-  objPts[q3].x = 280;
-  objPts[q3].y = 384;
-  objPts[q4].x = 360;
-  objPts[q4].y = 384;
-  objPts[q2].x = 280;
-  objPts[q2].y = 480;
-  objPts[q1].x = 360;
-  objPts[q1].y = 480;
-
-  // imgPts[0] = corners.at(0); 
-  // imgPts[1] = corners.at(board_w-1);
-  // imgPts[2] = corners.at((board_h-1) * board_w);
-  // imgPts[3] = corners.at((board_h-1) * board_w + board_w-1);
+  objPts[q3].x = 420;
+  objPts[q3].y = 540;
+  objPts[q4].x = 860;
+  objPts[q4].y = 540;
+  objPts[q2].x = 420;
+  objPts[q2].y = 1244;
+  objPts[q1].x = 860;
+  objPts[q1].y = 1244;
 
   H = cv::getPerspectiveTransform( objPts, imgPts );
   out<<H<<endl;
