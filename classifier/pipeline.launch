@@ -1,0 +1,9 @@
+<launch>
+	<include file="$(find video_stream_opencv)/launch/webcam.launch"/>
+	<node pkg="gslicr_ros" type="gslicr_ros_node" name="gslicr_ros_node" />
+	<node pkg="classifier" type="master" name="master" />
+	<node pkg="masker" type="masker_node" name="masker_node" />
+	<node pkg="image_view" type="image_view" name="image_view" respawn="false" output="screen">
+	<remap from="image" to="/final_image" />
+	</node>
+</launch>
