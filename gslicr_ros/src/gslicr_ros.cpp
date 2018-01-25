@@ -23,8 +23,21 @@
 
 using namespace std;
 
-void load_image(const cv::Mat& inimg, gSLICr::UChar4Image* outimg)
+void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& inimg, gSLICr::UChar4Image* outimg, cv::Size s, string& frame_id)
 {
+	frame_id = imgMessage->header.frame_id;	// for assigning the correct frame_id to the published images
+	cv_bridge::CvImagePtr cv_ptr;
+	try
+	{
+	  cv_ptr = cv_bridge::toCvCopy(imgMessage, sensor_msgs::image_encodings::BGR8);
+	}
+	catch (cv_bridge::Exception& e)
+	{
+	  ROS_ERROR("cv_bridge exception: %s", e.what());
+	  return;
+	}
+	cv::resize(cv_ptr->image, inimg, s);
+
 	gSLICr::Vector4u* outimg_ptr = outimg->GetData(MEMORYDEVICE_CPU);
 
 	for (int y = 0; y < outimg->noDims.y;y++)
@@ -48,33 +61,6 @@ void load_image(const gSLICr::UChar4Image* inimg, cv::Mat& outimg)
 			outimg.at<cv::Vec3b>(y, x)[0] = inimg_ptr[idx].b;
 			outimg.at<cv::Vec3b>(y, x)[1] = inimg_ptr[idx].g;
 			outimg.at<cv::Vec3b>(y, x)[2] = inimg_ptr[idx].r;
-		}
-}
-
-void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& inimg, gSLICr::UChar4Image* outimg, cv::Size s, string& frame_id)
-{
-	frame_id = imgMessage->header.frame_id;	// for assigning the correct frame_id to the published images
-	cv_bridge::CvImagePtr cv_ptr;
-    try
-    {
-      cv_ptr = cv_bridge::toCvCopy(imgMessage, sensor_msgs::image_encodings::BGR8);
-    }
-    catch (cv_bridge::Exception& e)
-    {
-      ROS_ERROR("cv_bridge exception: %s", e.what());
-      return;
-    }
-    cv::resize(cv_ptr->image, inimg, s);
-
-	gSLICr::Vector4u* outimg_ptr = outimg->GetData(MEMORYDEVICE_CPU);
-
-	for (int y = 0; y < outimg->noDims.y;y++)
-		for (int x = 0; x < outimg->noDims.x; x++)
-		{
-			int idx = x + y * outimg->noDims.x;
-			outimg_ptr[idx].b = inimg.at<cv::Vec3b>(y, x)[0];
-			outimg_ptr[idx].g = inimg.at<cv::Vec3b>(y, x)[1];
-			outimg_ptr[idx].r = inimg.at<cv::Vec3b>(y, x)[2];
 		}
 }
 
@@ -116,16 +102,16 @@ int main(int argc, char **argv)
 
 	// gSLICr settings
 	gSLICr::objects::settings my_settings;
-	my_settings.img_size.x = 500;
-    my_settings.img_size.y = 500;
-    my_settings.no_segs = 750;
-    my_settings.spixel_size = 100;
-    my_settings.coh_weight = 1.0f;
-    my_settings.no_iters = 5;
-    my_settings.color_space = gSLICr::CIELAB; // gSLICr::CIELAB for Lab, or gSLICr::RGB for RGB
-    my_settings.seg_method = gSLICr::GIVEN_NUM; // or gSLICr::GIVEN_NUM for given number
-    my_settings.do_enforce_connectivity = true; // whether or not run the enforce connectivity step
-	int n = int(sqrt(my_settings.no_segs)) - 1;
+	my_settings.img_size.x = 1280;
+	my_settings.img_size.y = 1280;
+	my_settings.no_segs = 3600;
+	my_settings.spixel_size = 100;
+	my_settings.coh_weight = 0.8f;
+	my_settings.no_iters = 5;
+	my_settings.color_space = gSLICr::CIELAB; // gSLICr::CIELAB for Lab, or gSLICr::RGB for RGB
+	my_settings.seg_method = gSLICr::GIVEN_NUM; // or gSLICr::GIVEN_NUM for given number
+	my_settings.do_enforce_connectivity = true; // whether or not run the enforce connectivity step
+	int n = int(sqrt(my_settings.no_segs))-2;
 
 	// instantiate a core_engine
 	gSLICr::engines::core_engine* gSLICr_engine = new gSLICr::engines::core_engine(my_settings);
@@ -136,12 +122,13 @@ int main(int argc, char **argv)
 
 	cv::Size outputSize(my_settings.img_size.x, my_settings.img_size.y);
 	string frame_id = "camera";
-	cv::Mat frame, boundary_draw_frame, sum_frame, count_frame, average_frame;
+	cv::Mat frame, boundary_draw_frame, sum_frame, count_frame, average_frame, average_rpl_frame;
 	frame.create(outputSize, CV_8UC3);
 	boundary_draw_frame.create(outputSize, CV_8UC3);
 	sum_frame.create(cv::Size(n, n), CV_32SC3);
 	count_frame.create(cv::Size(n, n), CV_16UC1);
 	average_frame.create(cv::Size(n, n), CV_8UC3);
+	average_rpl_frame.create(outputSize, CV_8UC3);
 	StopWatchInterface *my_timer; sdkCreateTimer(&my_timer);
 	std_msgs::UInt16MultiArray labels;
 	labels.data.resize(my_settings.img_size.x*my_settings.img_size.y);
@@ -149,59 +136,96 @@ int main(int argc, char **argv)
 	image_transport::ImageTransport it_gslicr(nh);
 	image_transport::Subscriber sub_img = it_gslicr.subscribe("/top_view", 1, boost::bind(imageCallback, _1, boost::ref(frame), in_img, boost::ref(outputSize), boost::ref(frame_id)));
 	image_transport::Publisher pub_bd = it_gslicr.advertise("/gslicr/boundaries", 1);
-	// image_transport::Publisher pub_resize = it_gslicr.advertise("/gslicr/resize", 1);
-	image_transport::Publisher pub_avg = it_gslicr.advertise("/gslicr/averages", 1);
 	ros::Publisher pub_seg = nh.advertise<std_msgs::UInt16MultiArray>("/gslicr/segmentation", 1);
+	// image_transport::Publisher pub_resize = it_gslicr.advertise("/gslicr/resize", 1);	// for comparing with cv::resize
+	image_transport::Publisher pub_avg = it_gslicr.advertise("/gslicr/averages", 1);
+	image_transport::Publisher pub_avg_rpl = it_gslicr.advertise("/gslicr/average_replaced_image", 1);
 	
 	ros::Rate loop_rate(60);
 	while (ros::ok())
 	{
 		ros::spinOnce();
-		sdkResetTimer(&my_timer); sdkStartTimer(&my_timer);
-		gSLICr_engine->Process_Frame(in_img);
-		sdkStopTimer(&my_timer); 
-		// cout<<"\rsegmentation in:["<<sdkGetTimerValue(&my_timer)<<"]ms"<<flush;
-		
-		gSLICr_engine->Draw_Segmentation_Result(out_img);
-		load_image(out_img, boundary_draw_frame);
-		t = ros::Time::now();
-		pub_bd.publish(imageToROSmsg(boundary_draw_frame, sensor_msgs::image_encodings::BGR8, frame_id, t));
+
+		// main computation
+		if(pub_bd.getNumSubscribers() + pub_seg.getNumSubscribers() + pub_avg.getNumSubscribers() + pub_avg_rpl.getNumSubscribers() > 0)
+		{
+			sdkResetTimer(&my_timer); sdkStartTimer(&my_timer);
+			gSLICr_engine->Process_Frame(in_img);
+			sdkStopTimer(&my_timer); 
+			// cout<<"\rsegmentation in:["<<sdkGetTimerValue(&my_timer)<<"]ms"<<flush;
+		}
+
+		// boundaries
+		if(pub_bd.getNumSubscribers() > 0)
+		{
+			gSLICr_engine->Draw_Segmentation_Result(out_img);
+			load_image(out_img, boundary_draw_frame);
+			t = ros::Time::now();
+			pub_bd.publish(imageToROSmsg(boundary_draw_frame, sensor_msgs::image_encodings::BGR8, frame_id, t));
+		}
+
+		// segmentation labels
+		if(pub_seg.getNumSubscribers() + pub_avg.getNumSubscribers() + pub_avg_rpl.getNumSubscribers() > 0)
+			gSLICr_engine->Write_Seg_Res_To_Array(labels.data);
+		if(pub_seg.getNumSubscribers() > 0)
+			pub_seg.publish(labels);
+
 		// cv::resize(frame, average_frame, cv::Size(n, n));
 		// pub_resize.publish(imageToROSmsg(average_frame, sensor_msgs::image_encodings::BGR8, frame_id, t));
+
+		// average colour values
+		if(pub_avg.getNumSubscribers() + pub_avg_rpl.getNumSubscribers() > 0)
+		{
+			// calculating the sum of the pixel values for each segment
+			sum_frame = cv::Mat::zeros(cv::Size(n, n), CV_32SC3);
+			count_frame = cv::Mat::zeros(cv::Size(n, n), CV_16UC1);
+			for(int i=0; i<my_settings.img_size.x*my_settings.img_size.y; i++)
+			{
+				sum_frame.at<cv::Vec3i>(labels.data[i]/n, labels.data[i]%n)[0] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[0];
+				sum_frame.at<cv::Vec3i>(labels.data[i]/n, labels.data[i]%n)[1] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[1];
+				sum_frame.at<cv::Vec3i>(labels.data[i]/n, labels.data[i]%n)[2] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[2];
+				count_frame.at<ushort>(labels.data[i]/n, labels.data[i]%n) += 1;
+			}
+			// calculating average colour values for each superpixel
+			for(int j=0; j<n; j++)
+				for(int i=0; i<n; i++)
+				{
+					if(count_frame.at<ushort>(j, i) != 0)
+					{
+						// black to green
+						average_frame.at<cv::Vec3b>(j, i)[0] = sum_frame.at<cv::Vec3i>(j, i)[0]/count_frame.at<ushort>(j, i);
+						average_frame.at<cv::Vec3b>(j, i)[1] = sum_frame.at<cv::Vec3i>(j, i)[1]/count_frame.at<ushort>(j, i);
+						average_frame.at<cv::Vec3b>(j, i)[2] = sum_frame.at<cv::Vec3i>(j, i)[2]/count_frame.at<ushort>(j, i);
+						if (average_frame.at<cv::Vec3b>(j, i)[0] < 16 && average_frame.at<cv::Vec3b>(j, i)[1] < 16 && average_frame.at<cv::Vec3b>(j, i)[2] < 16)
+						{
+							average_frame.at<cv::Vec3b>(j, i)[0] = 50;
+							average_frame.at<cv::Vec3b>(j, i)[1] = 150;
+							average_frame.at<cv::Vec3b>(j, i)[2] = 100;
+						}
+					}
+					else	// for avoiding divide-by-zero error
+					{
+						average_frame.at<cv::Vec3b>(j, i)[0] = 50;
+						average_frame.at<cv::Vec3b>(j, i)[1] = 150;
+						average_frame.at<cv::Vec3b>(j, i)[2] = 100;
+					}
+				}
+		}
+		if(pub_avg.getNumSubscribers() > 0)
+			pub_avg.publish(imageToROSmsg(average_frame, sensor_msgs::image_encodings::BGR8, frame_id, t));
+
+		// average-replaced-image
+		if(pub_avg_rpl.getNumSubscribers() > 0)
+		{
+			for(int i=0; i<my_settings.img_size.x*my_settings.img_size.y; i++)
+			{
+				average_rpl_frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[0] = average_frame.at<cv::Vec3b>(labels.data[i]/n, labels.data[i]%n)[0];
+				average_rpl_frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[1] = average_frame.at<cv::Vec3b>(labels.data[i]/n, labels.data[i]%n)[1];
+				average_rpl_frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[2] = average_frame.at<cv::Vec3b>(labels.data[i]/n, labels.data[i]%n)[2];
+			}
+			pub_avg_rpl.publish(imageToROSmsg(average_rpl_frame, sensor_msgs::image_encodings::BGR8, frame_id, t));
+		}
 		
-		gSLICr_engine->Write_Seg_Res_To_Array(labels.data);
-
-		// calculating the sum of the pixel values for each segment
-		sum_frame = cv::Mat::zeros(cv::Size(n, n), CV_32SC3);
-		count_frame = cv::Mat::zeros(cv::Size(n, n), CV_16UC1);
-        for(int i=0; i<my_settings.img_size.x*my_settings.img_size.y; i++)
-        {
-        	sum_frame.at<cv::Vec3i>(labels.data[i]/n, labels.data[i]%n)[0] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[0];
-        	sum_frame.at<cv::Vec3i>(labels.data[i]/n, labels.data[i]%n)[1] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[1];
-        	sum_frame.at<cv::Vec3i>(labels.data[i]/n, labels.data[i]%n)[2] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[2];
-            count_frame.at<ushort>(labels.data[i]/n, labels.data[i]%n) += 1;
-        }
-        // calculating average colour values for each superpixel
-        for(int j=0; j<n; j++)
-            for(int i=0; i<n; i++)
-            {
-            	if(count_frame.at<ushort>(j, i) != 0)
-            	{
-	                average_frame.at<cv::Vec3b>(j, i)[0] = sum_frame.at<cv::Vec3i>(j, i)[0]/count_frame.at<ushort>(j, i);
-	                average_frame.at<cv::Vec3b>(j, i)[1] = sum_frame.at<cv::Vec3i>(j, i)[1]/count_frame.at<ushort>(j, i);
-	                average_frame.at<cv::Vec3b>(j, i)[2] = sum_frame.at<cv::Vec3i>(j, i)[2]/count_frame.at<ushort>(j, i);
-	            }
-	            else	// for avoiding divide-by-zero error
-	            {
-	            	average_frame.at<cv::Vec3b>(j, i)[0] = 0;
-	                average_frame.at<cv::Vec3b>(j, i)[1] = 0;
-	                average_frame.at<cv::Vec3b>(j, i)[2] = 0;
-	            }
-            }     
-        pub_avg.publish(imageToROSmsg(average_frame, sensor_msgs::image_encodings::BGR8, frame_id, t));
-
-        pub_seg.publish(labels);
-
 		loop_rate.sleep();
 	}
 
