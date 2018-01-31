@@ -4,14 +4,14 @@ import rospy
 from classifier.srv import *
 
 clf= joblib.load('lane2.pkl')
-
+inner_superpixels=576
 def handle_classify(req):
-	d=np.zeros(27*576)
-	for i in range(27*576):
+	d=np.zeros(27*inner_superpixels)
+	for i in range(27*inner_superpixels):
 	    d[i]=req.data[i]
         print len(d)
-        X=np.zeros(shape=(576,27))
-        for k in range (576):
+        X=np.zeros(shape=(inner_superpixels,27))
+        for k in range (inner_superpixels):
             X[k]=d[27*k:27*k+27]
         print X
 	y=clf.predict(X)

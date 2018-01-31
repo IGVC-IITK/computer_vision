@@ -18,18 +18,24 @@
  #include <sensor_msgs/Image.h>
  #include <sensor_msgs/image_encodings.h>
  using namespace :: std;
+
+int inner_superpixels = 576; //
+int found_total_superpixels = 729; // THESE values are of no use , we are actually getting parameters from node handle
+int N=26;  // 
+
  /*
 int label[640*480]={0};
  
  void messageCallback(const std_msgs::UInt16MultiArray::ConstPtr& msg)
  {
-  for(int i=0;i<576;i++)
+  for(int i=0;i<inner_superpixels;i++)
   {
     label[i]=msg->data[i];
   }
   return;
  }
 */
+
 
 void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
   {
@@ -57,6 +63,10 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
  	  }
 */
  	  ros::NodeHandle n;
+ 	  n.getParam("inner_superpixels",inner_superpixels);
+ 	  n.getParam("found_total_superpixels",found_total_superpixels);
+ 	  n.getParam("N",N);
+
  	  ros::ServiceClient master = n.serviceClient<classifier::lane_classifier>("classifier");
  	  classifier::lane_classifier srv;
  	  srv.request.data.clear();
@@ -67,14 +77,14 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
 
  	  clock_t t;
     t = clock();
-    int mask[729];
+    int mask[found_total_superpixels];
  	
   //==========================================================
     
     //ros::Subscriber sub=n.subscribe("/gslicr/segmentation", 1000, messageCallback);
 
     cv::Mat image;
-    image.create(cv::Size(26, 26), CV_8UC3);
+    image.create(cv::Size(N, N), CV_8UC3);
       image_transport::ImageTransport it_avg(n);
       image_transport::Subscriber sub_img = it_avg.subscribe("/gslicr/averages", 1, boost::bind(imageCallback, _1, boost::ref(image)));
     while(ros::ok())
@@ -82,7 +92,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
 
   //=============================================================
       ros::spinOnce();
-//    for(int i=0;i<27 * 576;i++)
+//    for(int i=0;i<27 * inner_superpixels;i++)
   //    srv.request.data.push_back(1); // load all data 
     cv::Size sz=image.size();
     int h=sz.height;
@@ -141,7 +151,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
     cout<<cnt<<endl;
     if (master.call(srv))
     {
-      for(int i=0;i<576;i++)
+      for(int i=0;i<inner_superpixels;i++)
         mask[i]=(int)srv.response.ans[i]; // get whole mask
     }
     else
@@ -156,7 +166,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
     int count=0;
     
       std_msgs::UInt16MultiArray msg;
-      for(int i=0;i<576;i++)
+      for(int i=0;i<inner_superpixels;i++)
       {
         msg.data.push_back(mask[i]);
       }
@@ -168,7 +178,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
       ++count;
     }
 
-   	for (int i=0;i<729;i++)cout<<mask[i]<<" "; // prints the mask
+   	for (int i=0;i<found_total_superpixels;i++)cout<<mask[i]<<" "; // prints the mask
 
    	srv.request.data.clear();
 
