@@ -102,16 +102,16 @@ int main(int argc, char **argv)
 
 	// gSLICr settings
 	gSLICr::objects::settings my_settings;
-	my_settings.img_size.x = 1280;
-	my_settings.img_size.y = 1280;
-	my_settings.no_segs = 3600;
+	my_settings.img_size.x = 800;
+	my_settings.img_size.y = 800;
+	my_settings.no_segs = 1600;
 	my_settings.spixel_size = 100;
 	my_settings.coh_weight = 0.8f;
 	my_settings.no_iters = 5;
 	my_settings.color_space = gSLICr::CIELAB; // gSLICr::CIELAB for Lab, or gSLICr::RGB for RGB
 	my_settings.seg_method = gSLICr::GIVEN_NUM; // or gSLICr::GIVEN_NUM for given number
 	my_settings.do_enforce_connectivity = true; // whether or not run the enforce connectivity step
-	int n = int(sqrt(my_settings.no_segs))-2;
+	int n = int(sqrt(my_settings.no_segs));
 
 	// instantiate a core_engine
 	gSLICr::engines::core_engine* gSLICr_engine = new gSLICr::engines::core_engine(my_settings);

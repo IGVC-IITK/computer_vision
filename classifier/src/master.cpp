@@ -17,25 +17,15 @@
  #include <image_transport/image_transport.h>
  #include <sensor_msgs/Image.h>
  #include <sensor_msgs/image_encodings.h>
- using namespace :: std;
+ #include <opencv2/opencv.hpp>
+ #include <opencv2/ml/ml.hpp>
 
-int inner_superpixels = 576; //
-int found_total_superpixels = 729; // THESE values are of no use , we are actually getting parameters from node handle
-int N=26;  // 
-
- /*
-int label[640*480]={0};
- 
- void messageCallback(const std_msgs::UInt16MultiArray::ConstPtr& msg)
- {
-  for(int i=0;i<inner_superpixels;i++)
-  {
-    label[i]=msg->data[i];
-  }
-  return;
- }
-*/
-
+using namespace :: std;
+using namespace cv;
+using namespace cv::ml;
+int inner_superpixels = 40*40; 
+int found_total_superpixels = 40*40;
+int N=40;   
 
 void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
   {
@@ -53,53 +43,33 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
   }
 
 
- int main(int argc, char **argv)
- {
- 	  ros::init(argc, argv, "classifier_client");
- 	/*  if (argc != 3)
- 	  {
- 	    ROS_INFO("usage: classifier_client");
- 	    return 1;
- 	  }
-*/
- 	  ros::NodeHandle n;
- 	  n.getParam("inner_superpixels",inner_superpixels);
- 	  n.getParam("found_total_superpixels",found_total_superpixels);
- 	  n.getParam("N",N);
 
- 	  ros::ServiceClient master = n.serviceClient<classifier::lane_classifier>("classifier");
- 	  classifier::lane_classifier srv;
- 	  srv.request.data.clear();
+
+int main (int argc, char **argv)
+{
+    ros::init(argc, argv, "classifier_client");
+    ros::NodeHandle n;
+    n.getParam("inner_superpixels",inner_superpixels);
+    n.getParam("found_total_superpixels",found_total_superpixels);
+    n.getParam("N",N);
+
     ros::Publisher pub= n.advertise<std_msgs::UInt16MultiArray>("predictions",1000);
-
- 	// ==========================================================
-
-
- 	  clock_t t;
-    t = clock();
-    int mask[found_total_superpixels];
- 	
-  //==========================================================
-    
-    //ros::Subscriber sub=n.subscribe("/gslicr/segmentation", 1000, messageCallback);
-
+	
+    vector<int> mask(found_total_superpixels,4);
     cv::Mat image;
     image.create(cv::Size(N, N), CV_8UC3);
-      image_transport::ImageTransport it_avg(n);
-      image_transport::Subscriber sub_img = it_avg.subscribe("/gslicr/averages", 1, boost::bind(imageCallback, _1, boost::ref(image)));
+    image_transport::ImageTransport it_avg(n);
+    image_transport::Subscriber sub_img = it_avg.subscribe("/gslicr/averages", 1, boost::bind(imageCallback, _1, boost::ref(image)));
+
+    int g=0;
+    cout<<"running";
     while(ros::ok())
     {
 
-  //=============================================================
-      ros::spinOnce();
-//    for(int i=0;i<27 * inner_superpixels;i++)
-  //    srv.request.data.push_back(1); // load all data 
+    ros::spinOnce();
     cv::Size sz=image.size();
     int h=sz.height;
     int w=sz.width;
-    cout<<h<<" "<<w<<endl;
-    //cv::namedWindow("abc",1);
-    //cv::imshow("abc",image);
     int red[h][w],green[h][w],blue[h][w];
     for(int i=0;i<h;i++)
     {
@@ -109,83 +79,71 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
         green[i][j]=(int)image.at<cv::Vec3b>(i,j)[1];
         red[i][j]=(int)image.at<cv::Vec3b>(i,j)[2];
       }
-    }    
-    int cnt =0;
-    for(int i=0;i<h;i++)
-    {
-      for(int j=0;j<w;j++)
-      {
-        if(i==0||j==0||i==h-1||j==w-1)
-          continue;
-        srv.request.data.push_back(red[i-1][j-1]);
-        srv.request.data.push_back(green[i-1][j-1]);
-        srv.request.data.push_back(blue[i-1][j-1]);
-        srv.request.data.push_back(red[i-1][j]);
-        srv.request.data.push_back(green[i-1][j]);
-        srv.request.data.push_back(blue[i-1][j]);
-        srv.request.data.push_back(red[i-1][j+1]);
-        srv.request.data.push_back(green[i-1][j+1]);
-        srv.request.data.push_back(blue[i-1][j+1]);
-        srv.request.data.push_back(red[i][j-1]);
-        srv.request.data.push_back(green[i][j-1]);
-        srv.request.data.push_back(blue[i][j-1]);
-        srv.request.data.push_back(red[i][j]);
-        srv.request.data.push_back(green[i][j]);
-        srv.request.data.push_back(blue[i][j]);
-        srv.request.data.push_back(red[i][j+1]);
-        srv.request.data.push_back(green[i][j+1]);
-        srv.request.data.push_back(blue[i][j+1]);
-        srv.request.data.push_back(red[i+1][j-1]);
-        srv.request.data.push_back(green[i+1][j-1]);
-        srv.request.data.push_back(blue[i+1][j-1]);
-        srv.request.data.push_back(red[i+1][j]);
-        srv.request.data.push_back(green[i+1][j]);
-        srv.request.data.push_back(blue[i+1][j]);
-        srv.request.data.push_back(red[i+1][j+1]);
-        srv.request.data.push_back(green[i+1][j+1]);
-        srv.request.data.push_back(blue[i+1][j+1]);
-        cnt++;
-      }
-    }
-  //===========================================================
-    cout<<cnt<<endl;
-    if (master.call(srv))
-    {
-      for(int i=0;i<inner_superpixels;i++)
-        mask[i]=(int)srv.response.ans[i]; // get whole mask
-    }
-    else
-    {
-      ROS_ERROR("Failed to call service classifier");
-      return 1;
     }
 
+    int lines=h*w;
+    int features=75;
+    Mat_<float> data(lines,features);
+    Mat_<float> result(lines,1);
 
+    int x[]={-2,-2,-2,-2,-2,-1,-1,-1,-1,-1,0,0,0,0,0,1,1,1,1,1,2,2,2,2,2};
+    int y[]={-2,-1,0,1,2,-2,-1,0,1,2,-2,-1,0,1,2,-2,-1,0,1,2,-2,-1,0,1,2};
+    
+    for(int i=0;i<lines;i++)
+    {
+        for(int j=0;j<25;j++)
+        {
+            int i1=i/w + x[j];
+            int j1=i%w + y[j];
+
+            if(i1==-1 || i1==-2 || j1==-1 || j1==-2 || i1==h || i1==h+1 || j1==w || j1==w+1)
+            {
+                data(i,3*j)=100;
+                data(i,3*j+1)=50;
+                data(i,3*j+2)=150;
+                continue;
+                    
+            }
+
+            data(i,3*j)=red[i/w+x[j]][i%w+y[j]];
+            data(i,3*j+1)=green[i/w+x[j]][i%w+y[j]];
+            data(i,3*j+2)=blue[i/w+x[j]][i%w+y[j]];
+
+        }
+    }
+    //cout<<data(0,0)<<endl;
+
+    Ptr<ANN_MLP> network = cv::ml::ANN_MLP::load("mlp.yml");    
+    //cout<<h<<" "<<w<<endl;
+    network->predict(data,result);
+    //cout<<"doo"<<endl;
+    //cout<<h<<" "<<w<<endl;
+    if (network->isTrained())
+    {
+        for (int i=0; i<data.rows; ++i)
+        {
+            if(result(i,0)>0)
+                mask[i]=1;
+            else
+                mask[i]=0; 
+      		cout<<mask[i];//<<"doo";
+        }
+    }
+    //cout<<endl;
+    
     ros::Rate loop_rate(10);
-    
-    int count=0;
-    
-      std_msgs::UInt16MultiArray msg;
-      for(int i=0;i<inner_superpixels;i++)
-      {
-        msg.data.push_back(mask[i]);
-      }
-      pub.publish(msg);
-      msg.data.clear();
-      srv.request.data.clear();
-      
-      loop_rate.sleep();
-      ++count;
+
+    std_msgs::UInt16MultiArray msg;
+    for(int i=0;i<inner_superpixels;i++){
+      msg.data.push_back(mask[i]);
     }
 
-   	for (int i=0;i<found_total_superpixels;i++)cout<<mask[i]<<" "; // prints the mask
+    pub.publish(msg);
+    msg.data.clear();
+    loop_rate.sleep();
+    }
 
-   	srv.request.data.clear();
+    for (int i=0;i<found_total_superpixels;i++)cout<<mask[i]<<" "; // prints the mask
 
-   	cout<<endl;
-   	t = clock() - t;
-   	double time_taken = ((double)t)/CLOCKS_PER_SEC; // in seconds
-   	cout<<(1/time_taken)<<" FPS of prediction"<<endl;
-    //ros::spin();
-    return 0;
- }
+return 0;
+}
