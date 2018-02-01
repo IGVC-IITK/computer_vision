@@ -44,8 +44,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         <param name="svo_filepath"          value="$(arg svo_file)" />
 
 	   <!-- obstacle detection (dist in m, orient in rad) -->
-		<param name="orient"     	    	value="0.05" />
-		<param name="dist"            	    value="-0.71" />
+		<param name="orient"     	    	value="0.35" />
+		<param name="dist"            	    value="-0.25" />
 
         <!-- ZED parameters -->
         <param name="zed_id"                value="$(arg zed_id)" />

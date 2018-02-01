@@ -69,9 +69,14 @@
 
 #include <sl/Camera.hpp>
 
+#define SUFF_DELAY 0.2 //calibrated delay between data arrival from image and IMU
+#define IMU_FREQ 50.0
 using namespace std;
 
-geometry_msgs::TransformStamped transform_gimbal;
+int reading_delay = (int) (SUFF_DELAY*IMU_FREQ); //go back these many IMU readings while calculating transform_gimbal
+int buffer_size = (int) (SUFF_DELAY*IMU_FREQ*2); //*2 for avoiding overflow
+int buffer_end = 0;
+geometry_msgs::TransformStamped transform_gimbal[(int) (SUFF_DELAY*IMU_FREQ *2)];
 /* \brief Get the orientation of the camera from the IMU
  * \transform_gimbal is the transform between the camera frame 
  * \and a frame with the same origin but parallel to the ground
@@ -83,10 +88,11 @@ void getTransform(const sensor_msgs::Imu &Imu) {
     imu_orient.getRPY(roll, pitch, yaw, 1);
     tf2::Quaternion virtual_gimbal;
     virtual_gimbal.setRPY(roll, pitch, 0);
-    transform_gimbal.transform.rotation.x = virtual_gimbal.x();
-    transform_gimbal.transform.rotation.y = virtual_gimbal.y();
-    transform_gimbal.transform.rotation.z = virtual_gimbal.z();
-    transform_gimbal.transform.rotation.w = virtual_gimbal.w();
+    transform_gimbal[buffer_end].transform.rotation.x = virtual_gimbal.x();
+    transform_gimbal[buffer_end].transform.rotation.y = virtual_gimbal.y();
+    transform_gimbal[buffer_end].transform.rotation.z = virtual_gimbal.z();
+    transform_gimbal[buffer_end].transform.rotation.w = virtual_gimbal.w();
+    buffer_end = (buffer_end+1)%buffer_size;
 }
 
 namespace zed_wrapper {
@@ -399,12 +405,15 @@ namespace zed_wrapper {
             geometry_msgs::PointStamped point_camera, point_gimbal; 
             sl::Vector4<float>* cpu_cloud = cloud.getPtr<sl::float4>();
             int size = width*height;
+            int buffer_pointer = buffer_end - reading_delay;
+            if (buffer_pointer < 0)
+                buffer_pointer = buffer_pointer + buffer_size;
             for (int i = 0; i < size; i++) {
                 if(isfinite(cpu_cloud[i][0]) && isfinite(cpu_cloud[i][1]) && isfinite(cpu_cloud[i][2])) {
                     point_camera.point.x = cpu_cloud[i][2];
                     point_camera.point.y = -cpu_cloud[i][0];
                     point_camera.point.z = -cpu_cloud[i][1];
-                    tf2::doTransform(point_camera, point_gimbal, transform_gimbal);
+                    tf2::doTransform(point_camera, point_gimbal, transform_gimbal[buffer_pointer]);
                     if((point_gimbal.point.z*cos(orient) - point_gimbal.point.x*sin(orient)) > dist) {
                         int j = i/width;
                         int q = i%width;
@@ -969,7 +978,7 @@ namespace zed_wrapper {
             NODELET_INFO_STREAM("Advertized on topic " << odometry_topic);
 
             //obstacle detector
-            sub_imu = nh_ns.subscribe("/imu", 1, getTransform);
+            sub_imu = nh_ns.subscribe("/imu", 2000, getTransform);
             pub_obstacle = it_zed.advertise(obstacle_topic, 1); //rgb
             NODELET_INFO_STREAM("Advertized on topic " << obstacle_topic);
             
