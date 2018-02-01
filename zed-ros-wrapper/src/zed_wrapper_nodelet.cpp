@@ -45,10 +45,13 @@
 #include <dynamic_reconfigure/server.h>
 #include <zed_wrapper/ZedConfig.h>
 #include <nav_msgs/Odometry.h>
+#include <geometry_msgs/PointStamped.h>
+#include <sensor_msgs/Imu.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 #include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Scalar.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <geometry_msgs/TransformStamped.h>
 
@@ -67,6 +70,24 @@
 #include <sl/Camera.hpp>
 
 using namespace std;
+
+geometry_msgs::TransformStamped transform_gimbal;
+/* \brief Get the orientation of the camera from the IMU
+ * \transform_gimbal is the transform between the camera frame 
+ * \and a frame with the same origin but parallel to the ground
+ * \(like a virtual gimbal attached to the camera).
+ */
+void getTransform(const sensor_msgs::Imu &Imu) {
+    tf2::Matrix3x3 imu_orient(tf2::Quaternion(Imu.orientation.x, Imu.orientation.y, Imu.orientation.z, Imu.orientation.w));
+    tf2Scalar roll, pitch, yaw;
+    imu_orient.getRPY(roll, pitch, yaw, 1);
+    tf2::Quaternion virtual_gimbal;
+    virtual_gimbal.setRPY(roll, pitch, 0);
+    transform_gimbal.transform.rotation.x = virtual_gimbal.x();
+    transform_gimbal.transform.rotation.y = virtual_gimbal.y();
+    transform_gimbal.transform.rotation.z = virtual_gimbal.z();
+    transform_gimbal.transform.rotation.w = virtual_gimbal.w();
+}
 
 namespace zed_wrapper {
 
@@ -90,6 +111,8 @@ namespace zed_wrapper {
         ros::Publisher pub_right_cam_info_raw;
         ros::Publisher pub_depth_cam_info;
         ros::Publisher pub_odom;
+        ros::Subscriber sub_imu;
+        image_transport::Publisher pub_obstacle; //publisher defined
 
         // tf
         tf2_ros::TransformBroadcaster transform_odom_broadcaster;
@@ -101,6 +124,7 @@ namespace zed_wrapper {
         std::string odometry_frame_id;
         std::string base_frame_id;
         std::string camera_frame_id;
+        std::string obstacle_frame_id;
         // initialization Transform listener
         boost::shared_ptr<tf2_ros::Buffer> tfBuffer;
         boost::shared_ptr<tf2_ros::TransformListener> tf_listener;
@@ -116,6 +140,9 @@ namespace zed_wrapper {
         int depth_stabilization;
         std::string odometry_DB;
         std::string svo_filepath;
+        //obstacle detection parameters
+        float dist;
+        float orient;
 
         //Tracking variables
         sl::Pose pose;
@@ -360,6 +387,36 @@ namespace zed_wrapper {
             pub_cloud.publish(output);
         }
 
+        /* \brief Publish a cv::Mat image after identifying obstacles with a ros Publisher
+         * \param width : the width of the point cloud
+         * \param height : the height of the point cloud
+         * \param img : the image to publish
+         * \param pub_img : the publisher object to use
+         * \param img_frame_id : the id of the reference frame of the image
+         * \param t : the ros::Time to stamp the image
+         */
+        void publishObstacle(int width, int height, cv::Mat img, image_transport::Publisher &pub_img, string img_frame_id, ros::Time t) {
+            geometry_msgs::PointStamped point_camera, point_gimbal; 
+            sl::Vector4<float>* cpu_cloud = cloud.getPtr<sl::float4>();
+            int size = width*height;
+            for (int i = 0; i < size; i++) {
+                if(isfinite(cpu_cloud[i][0]) && isfinite(cpu_cloud[i][1]) && isfinite(cpu_cloud[i][2])) {
+                    point_camera.point.x = cpu_cloud[i][2];
+                    point_camera.point.y = -cpu_cloud[i][0];
+                    point_camera.point.z = -cpu_cloud[i][1];
+                    tf2::doTransform(point_camera, point_gimbal, transform_gimbal);
+                    if((point_gimbal.point.z*cos(orient) - point_gimbal.point.x*sin(orient)) > dist) {
+                        int j = i/width;
+                        int q = i%width;
+                        img.at<cv::Vec3b>(j,q).val[0]=0;
+                        img.at<cv::Vec3b>(j,q).val[1]=0;
+                        img.at<cv::Vec3b>(j,q).val[2]=0;
+                    }
+                }
+            }
+            pub_img.publish(imageToROSmsg(img, sensor_msgs::image_encodings::BGR8, img_frame_id, t));
+        }
+
         /* \brief Publish the informations of a camera with a ros Publisher
          * \param cam_info_msg : the information message to publish
          * \param pub_cam_info : the publisher object to use
@@ -512,7 +569,9 @@ namespace zed_wrapper {
                 int depth_SubNumber = pub_depth.getNumSubscribers();
                 int cloud_SubNumber = pub_cloud.getNumSubscribers();
                 int odom_SubNumber = pub_odom.getNumSubscribers();
-                bool runLoop = (rgb_SubNumber + rgb_raw_SubNumber + left_SubNumber + left_raw_SubNumber + right_SubNumber + right_raw_SubNumber + depth_SubNumber + cloud_SubNumber + odom_SubNumber) > 0;
+                int obstacle_Subnumber = pub_obstacle.getNumSubscribers();//suscriber defined
+                int imu_Pubnumber = sub_imu.getNumPublishers();
+                bool runLoop = (rgb_SubNumber + rgb_raw_SubNumber + left_SubNumber + left_raw_SubNumber + right_SubNumber + right_raw_SubNumber + depth_SubNumber + cloud_SubNumber + odom_SubNumber + obstacle_Subnumber) > 0;
 
                 runParams.enable_point_cloud = false;
                 if (cloud_SubNumber > 0)
@@ -630,13 +689,25 @@ namespace zed_wrapper {
                     }
 
                     // Publish the point cloud if someone has subscribed to
-                    if (cloud_SubNumber > 0) {
+                    if (cloud_SubNumber >= 0) {
                         // Run the point cloud conversion asynchronously to avoid slowing down all the program
                         // Retrieve raw pointCloud data
                         zed->retrieveMeasure(cloud, sl::MEASURE_XYZBGRA);
                         point_cloud_frame_id = cloud_frame_id;
                         point_cloud_time = t;
                         publishPointCloud(width, height, pub_cloud);
+                    }
+                    if (imu_Pubnumber > 0) {
+                        ros::spinOnce();
+                    }
+                    // Publish obstacle if someone has suscribed to
+                    if (obstacle_Subnumber > 0) {
+                        zed->retrieveMeasure(cloud, sl::MEASURE_XYZBGRA);
+                        point_cloud_frame_id = cloud_frame_id;
+                        point_cloud_time = t;
+                        zed->retrieveImage(leftZEDMat, sl::VIEW_LEFT);
+                        cv::cvtColor(toCVMat(leftZEDMat), leftImRGB, CV_RGBA2RGB);
+                        publishObstacle(width, height, leftImRGB, pub_obstacle, obstacle_frame_id, t);                        
                     }
 
                     // Transform from base to sensor
@@ -708,6 +779,8 @@ namespace zed_wrapper {
             gpu_id = -1;
             zed_id = 0;
             odometry_DB = "";
+            //dist = 0;
+            //orient = 0;
 
             nh = getMTNodeHandle();
             nh_ns = getMTPrivateNodeHandle();
@@ -729,6 +802,9 @@ namespace zed_wrapper {
             nh_ns.getParam("gpu_id", gpu_id);
             nh_ns.getParam("zed_id", zed_id);
             nh_ns.getParam("depth_stabilization", depth_stabilization);
+            //calling params from launch file 
+            nh_ns.getParam("dist", dist);
+            nh_ns.getParam("orient", orient);
 
             // Publish odometry tf
             nh_ns.param<bool>("publish_tf", publish_tf, true);
@@ -778,6 +854,9 @@ namespace zed_wrapper {
 
             string odometry_topic = "odom";
 
+            string obstacle_topic = "obstacle";
+            obstacle_frame_id = camera_frame_id;
+
             nh_ns.getParam("rgb_topic", rgb_topic);
             nh_ns.getParam("rgb_raw_topic", rgb_raw_topic);
             nh_ns.getParam("rgb_cam_info_topic", rgb_cam_info_topic);
@@ -799,6 +878,8 @@ namespace zed_wrapper {
             nh_ns.getParam("point_cloud_topic", point_cloud_topic);
 
             nh_ns.getParam("odometry_topic", odometry_topic);
+
+            nh_ns.getParam("obstacle_topic", obstacle_topic);
 
             nh_ns.param<std::string>("svo_filepath", svo_filepath, std::string());
 
@@ -886,6 +967,12 @@ namespace zed_wrapper {
             //Odometry publisher
             pub_odom = nh.advertise<nav_msgs::Odometry>(odometry_topic, 1);
             NODELET_INFO_STREAM("Advertized on topic " << odometry_topic);
+
+            //obstacle detector
+            sub_imu = nh_ns.subscribe("/imu", 1, getTransform);
+            pub_obstacle = it_zed.advertise(obstacle_topic, 1); //rgb
+            NODELET_INFO_STREAM("Advertized on topic " << obstacle_topic);
+            
 
             device_poll_thread = boost::shared_ptr<boost::thread>
                     (new boost::thread(boost::bind(&ZEDWrapperNodelet::device_poll, this)));

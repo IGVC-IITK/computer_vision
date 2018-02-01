@@ -43,10 +43,14 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         <!-- SVO file path -->
         <param name="svo_filepath"          value="$(arg svo_file)" />
 
+	   <!-- obstacle detection (dist in m, orient in rad) -->
+		<param name="orient"     	    	value="0.05" />
+		<param name="dist"            	    value="-0.71" />
+
         <!-- ZED parameters -->
         <param name="zed_id"                value="$(arg zed_id)" />
 
-        <param name="resolution"            value="2" />
+        <param name="resolution"            value="3" />
         <param name="quality"               value="1" />
         <param name="sensing_mode"          value="0" />
         <param name="frame_rate"            value="60" />
@@ -78,6 +82,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         <param name="point_cloud_topic"     value="point_cloud/cloud_registered" />
 
         <param name="odometry_topic"        value="odom" />
+
+		<param name="obstacle_topic"        value="obstacle" />        
 
     </node>
 
