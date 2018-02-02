@@ -31,10 +31,10 @@ vector <int > splx1;
 vector <int > splx2;
 vector <pair<int,int> > sply1;
 vector <pair<int,int> > sply2;
-static int mask2d[N][N];
+static int mask2d[40][40];
 //int mask[576]={0};
-static int mask[superpixels]={0};
-static int labels[img_size*img_size]={0};    
+static int mask[1600]={0};
+static int labels[40*40]={0};    
 
 void labelsCallback(const std_msgs::UInt16MultiArray::ConstPtr& msg)
 {
