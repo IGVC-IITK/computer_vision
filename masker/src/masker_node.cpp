@@ -25,25 +25,23 @@ using namespace cv;
 int superpixels=1600;
 int N=40;
 int img_size=800;
+int flag=0;
 
-
-vector <int > splx1;
-vector <int > splx2;
-vector <pair<int,int> > sply1;
-vector <pair<int,int> > sply2;
-static int mask2d[40][40];
+int mask2d[40][40]={0};
 //int mask[576]={0};
-static int mask[1600]={0};
-static int labels[40*40]={0};    
+int mask[1600]={0};
+int labels[40*40]={0};    
 
 void labelsCallback(const std_msgs::UInt16MultiArray::ConstPtr& msg)
 {
-    for(int i=0;i<500*500;i++)
+	flag=1;
+    for(int i=0;i<img_size*img_size;i++)
         labels[i]=msg->data[i];   
 }
 void predictionsCallback(const std_msgs::UInt16MultiArray::ConstPtr& msg)
 {
-  for(int i=0;i<576;i++)
+	flag=1;
+  for(int i=0;i<superpixels;i++)
     mask[i]=msg->data[i];
 } 
 sensor_msgs::ImagePtr imageToROSmsg(cv::Mat img, const std::string encodingType, std::string frameId, ros::Time t)
@@ -84,45 +82,39 @@ int main(int argc,char **argv)
     ros::Subscriber sub = n2.subscribe("predictions", 1000, predictionsCallback);       
     ros::Subscriber sub2 = n2.subscribe("/gslicr/segmentation", 1000, labelsCallback);       
     image_transport::ImageTransport it_gslicr(n2);
-        ros::Time t;
-
+    ros::Time t;
     image_transport::Publisher pub_avg = it_gslicr.advertise("/final_image", 1);
-
     // get mask from callback function and averaged image (27X27)
     ros::Rate loop_rate(30);
     while(ros::ok())
     {
-        ros::spinOnce();
- 
-    //splfit(mask); // actual function , use only if needed
+    	int red_sum[superpixels]={0},green_sum[superpixels]={0},blue_sum[superpixels]={0};
 
-    int red_sum[superpixels]={0},green_sum[superpixels]={0},blue_sum[superpixels]={0};
-    int k=0;
-    for(int i=0;i<superpixels;i++)
-    {
-            red_sum[i] =mask[i]*255;
-            green_sum[i] =mask[i]*255;
-            blue_sum[i] =mask[i]*255;
-    }
-    
-    cv::Mat M1(img_size,img_size, CV_8UC3, {0,0,0});
-    for (int x=0;x<img_size;x++)
-    {
-        for(int y=0;y<img_size;y++)
-        {
-                M1.at<cv::Vec3b>(x,y)[0]=blue_sum[labels[x*img_size + y ]] ;// b
-                M1.at<cv::Vec3b>(x,y)[1]=green_sum[labels[x*img_size + y ]] ;// g
-                M1.at<cv::Vec3b>(x,y)[2]=red_sum[labels[x*img_size + y ]] ;// r
-        }
-    }
-    //cv::namedWindow("video",1);
-    //cv::imgshow("video",M1);
-    string frame_id="camera";
-    t = ros::Time::now();
-
-
-    pub_avg.publish(imageToROSmsg(M1, sensor_msgs::image_encodings::BGR8, frame_id, t));
-    loop_rate.sleep();
+    	ros::spinOnce();
+    	if(flag==0)continue;
+    	for(int i=0;i<superpixels;i++)
+    	{
+    	        red_sum[i] =mask[i]*255;
+    	        green_sum[i] =mask[i]*255;
+    	        blue_sum[i] =mask[i]*255;
+    	}
+    	
+    	cv::Mat M1(img_size,img_size, CV_8UC3, {0,0,0});
+    	for (int x=0;x<img_size;x++)
+    	{
+    	    for(int y=0;y<img_size;y++)
+    	    {
+    	            M1.at<cv::Vec3b>(x,y)[0]=blue_sum[labels[x*img_size + y ]] ;// b
+    	            M1.at<cv::Vec3b>(x,y)[1]=green_sum[labels[x*img_size + y ]] ;// g
+    	            M1.at<cv::Vec3b>(x,y)[2]=red_sum[labels[x*img_size + y ]] ;// r
+    	    }
+    	}
+    	//cv::namedWindow("video",1);
+    	//cv::imgshow("video",M1);
+    	string frame_id="camera";
+    	t = ros::Time::now();
+    	pub_avg.publish(imageToROSmsg(M1, sensor_msgs::image_encodings::BGR8, frame_id, t));
+    	loop_rate.sleep();
 
 	}
  return 0;
