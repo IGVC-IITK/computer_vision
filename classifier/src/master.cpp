@@ -26,9 +26,10 @@ using namespace cv::ml;
 int inner_superpixels = 40*40; 
 int found_total_superpixels = 40*40;
 int N=40;   
-
+int flag=0;
 void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
   {
+  	flag=1;
     cv_bridge::CvImagePtr cv_ptr;
     try
     {
@@ -62,18 +63,23 @@ int main (int argc, char **argv)
     image_transport::Subscriber sub_img = it_avg.subscribe("/gslicr/averages", 1, boost::bind(imageCallback, _1, boost::ref(image)));
 
     int g=0;
-    cout<<"running";
+    int red[40][40],green[40][40],blue[40][40];
     while(ros::ok())
     {
 
     ros::spinOnce();
+    if(flag==0)
+    {
+    	//cout<<"nothing found";
+    	continue;
+    }
     cv::Size sz=image.size();
     int h=sz.height;
     int w=sz.width;
-    int red[h][w],green[h][w],blue[h][w];
-    for(int i=0;i<h;i++)
+
+    for(int i=0;i<40;i++)
     {
-      for(int j=0;j<w;j++)
+      for(int j=0;j<40;j++)
       {
         blue[i][j]=(int)image.at<cv::Vec3b>(i,j)[0];
         green[i][j]=(int)image.at<cv::Vec3b>(i,j)[1];
@@ -111,9 +117,9 @@ int main (int argc, char **argv)
 
         }
     }
-    //cout<<data(0,0)<<endl;
+    cout<<data(0,0)<<endl;
 
-    Ptr<ANN_MLP> network = cv::ml::ANN_MLP::load("mlp.yml");    
+    Ptr<ANN_MLP> network = cv::ml::ANN_MLP::load("/home/utkarsh/Downloads/mlp.yml");    
     //cout<<h<<" "<<w<<endl;
     network->predict(data,result);
     //cout<<"doo"<<endl;
@@ -143,7 +149,7 @@ int main (int argc, char **argv)
     loop_rate.sleep();
     }
 
-    for (int i=0;i<found_total_superpixels;i++)cout<<mask[i]<<" "; // prints the mask
+  //  for (int i=0;i<found_total_superpixels;i++)cout<<mask[i]<<" "; // prints the mask
 
 return 0;
 }
