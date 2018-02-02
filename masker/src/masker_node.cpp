@@ -30,7 +30,9 @@ int flag=0;
 int mask2d[40][40]={0};
 //int mask[576]={0};
 int mask[1600]={0};
-int labels[40*40]={0};    
+int labels[800*800]={0};    
+
+
 
 void labelsCallback(const std_msgs::UInt16MultiArray::ConstPtr& msg)
 {
@@ -85,13 +87,11 @@ int main(int argc,char **argv)
     ros::Time t;
     image_transport::Publisher pub_avg = it_gslicr.advertise("/final_image", 1);
     // get mask from callback function and averaged image (27X27)
-    ros::Rate loop_rate(30);
+    ros::Rate loop_rate(10);
+    	int red_sum[superpixels]={0},green_sum[superpixels]={0},blue_sum[superpixels]={0};
     while(ros::ok())
     {
-    	int red_sum[superpixels]={0},green_sum[superpixels]={0},blue_sum[superpixels]={0};
-
     	ros::spinOnce();
-    	if(flag==0)continue;
     	for(int i=0;i<superpixels;i++)
     	{
     	        red_sum[i] =mask[i]*255;
@@ -99,7 +99,8 @@ int main(int argc,char **argv)
     	        blue_sum[i] =mask[i]*255;
     	}
     	
-    	cv::Mat M1(img_size,img_size, CV_8UC3, {0,0,0});
+    	cv::Mat M1;
+        M1.create(cv::Size(800,800), CV_8UC3);
     	for (int x=0;x<img_size;x++)
     	{
     	    for(int y=0;y<img_size;y++)
