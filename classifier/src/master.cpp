@@ -1,34 +1,32 @@
- #include "ros/ros.h"
- #include "classifier/lane_classifier.h"
- #include <cstdlib>
- #include <iostream>
- #include <fstream>
- #include <time.h> 
- #include "std_msgs/UInt16MultiArray.h"
- 
- #include <vector>
+#include "ros/ros.h"
+#include <cstdlib>
+#include <iostream>
+#include <fstream>
+#include <time.h> 
+#include "std_msgs/UInt16MultiArray.h"
+#include <vector>
+#include <opencv2/calib3d/calib3d.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <cv_bridge/cv_bridge.h>
+#include <image_transport/image_transport.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
+#include <opencv2/opencv.hpp>
+#include <opencv2/ml/ml.hpp>
 
- #include <opencv2/calib3d/calib3d.hpp>
- #include <opencv2/core/core.hpp>
- #include <opencv2/highgui/highgui.hpp>
- #include <opencv2/imgproc/imgproc.hpp>
-
- #include <cv_bridge/cv_bridge.h>
- #include <image_transport/image_transport.h>
- #include <sensor_msgs/Image.h>
- #include <sensor_msgs/image_encodings.h>
- #include <opencv2/opencv.hpp>
- #include <opencv2/ml/ml.hpp>
 
 using namespace :: std;
 using namespace cv;
 using namespace cv::ml;
-int inner_superpixels = 40*40; 
-int found_total_superpixels = 40*40;
-int N=40;   
+
+
+   
 int flag=0;
+
 void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
-  {
+{
   	flag=1;
     cv_bridge::CvImagePtr cv_ptr;
     try
@@ -41,15 +39,21 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
       return;
     }
     image=cv_ptr->image;
-  }
+}
 
 
 
 
 int main (int argc, char **argv)
 {
+    int inner_superpixels = 40*40; 
+    int found_total_superpixels = 40*40;
+    int N=40;
+
     ros::init(argc, argv, "classifier_client");
     ros::NodeHandle n;
+
+    //getting ros parameters
     n.getParam("inner_superpixels",inner_superpixels);
     n.getParam("found_total_superpixels",found_total_superpixels);
     n.getParam("N",N);
@@ -69,10 +73,8 @@ int main (int argc, char **argv)
 
     ros::spinOnce();
     if(flag==0)
-    {
-    	//cout<<"nothing found";
     	continue;
-    }
+    
     cv::Size sz=image.size();
     int h=sz.height;
     int w=sz.width;
@@ -146,7 +148,7 @@ int main (int argc, char **argv)
 
     pub.publish(msg);
     msg.data.clear();
-    loop_rate.sleep();
+    //loop_rate.sleep();
     }
 
   //  for (int i=0;i<found_total_superpixels;i++)cout<<mask[i]<<" "; // prints the mask
