@@ -20,17 +20,18 @@
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/image_encodings.h>
-
 using namespace std;
 using namespace cv;
-
 int superpixels=1600;
 int N=40;
 int img_size=800;
 int flag=0;
 
+int mask2d[40][40]={0};
+//int mask[576]={0};
 int mask[1600]={0};
 int labels[800*800]={0};    
+
 
 
 void labelsCallback(const std_msgs::UInt16MultiArray::ConstPtr& msg)
@@ -39,16 +40,12 @@ void labelsCallback(const std_msgs::UInt16MultiArray::ConstPtr& msg)
     for(int i=0;i<img_size*img_size;i++)
         labels[i]=msg->data[i];   
 }
-
-
 void predictionsCallback(const std_msgs::UInt16MultiArray::ConstPtr& msg)
 {
-    flag=1;
-    for(int i=0;i<superpixels;i++)
-        mask[i]=msg->data[i];
-}
-
-
+	flag=1;
+  for(int i=0;i<superpixels;i++)
+    mask[i]=msg->data[i];
+} 
 sensor_msgs::ImagePtr imageToROSmsg(cv::Mat img, const std::string encodingType, std::string frameId, ros::Time t)
 {
     // this part of the source code has been imported from https://github.com/stereolabs/zed-ros-wrapper
@@ -89,16 +86,17 @@ int main(int argc,char **argv)
     image_transport::ImageTransport it_gslicr(n2);
     ros::Time t;
     image_transport::Publisher pub_avg = it_gslicr.advertise("/final_image", 1);
-    ros::Rate loop_rate(10);
-    int red_sum[superpixels]={0},green_sum[superpixels]={0},blue_sum[superpixels]={0};
+    // get mask from callback function and averaged image (27X27)
+    ros::Rate loop_rate(30);
+    	int red_sum[superpixels]={0},green_sum[superpixels]={0},blue_sum[superpixels]={0};
     while(ros::ok())
     {
     	ros::spinOnce();
     	for(int i=0;i<superpixels;i++)
     	{
-	        red_sum[i] =mask[i]*255;
-            green_sum[i] =mask[i]*255;
-    	    blue_sum[i] =mask[i]*255;
+    	        red_sum[i] =mask[i]*255;
+    	        green_sum[i] =mask[i]*255;
+    	        blue_sum[i] =mask[i]*255;
     	}
     	
     	cv::Mat M1;
@@ -107,11 +105,13 @@ int main(int argc,char **argv)
     	{
     	    for(int y=0;y<img_size;y++)
     	    {
-	            M1.at<cv::Vec3b>(x,y)[0]=blue_sum[labels[x*img_size + y ]] ;// b
-                M1.at<cv::Vec3b>(x,y)[1]=green_sum[labels[x*img_size + y ]] ;// g
-    	        M1.at<cv::Vec3b>(x,y)[2]=red_sum[labels[x*img_size + y ]] ;// r
+    	            M1.at<cv::Vec3b>(x,y)[0]=blue_sum[labels[x*img_size + y ]] ;// b
+    	            M1.at<cv::Vec3b>(x,y)[1]=green_sum[labels[x*img_size + y ]] ;// g
+    	            M1.at<cv::Vec3b>(x,y)[2]=red_sum[labels[x*img_size + y ]] ;// r
     	    }
     	}
+    	//cv::namedWindow("video",1);
+    	//cv::imgshow("video",M1);
     	string frame_id="camera";
     	t = ros::Time::now();
     	pub_avg.publish(imageToROSmsg(M1, sensor_msgs::image_encodings::BGR8, frame_id, t));

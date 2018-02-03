@@ -119,13 +119,8 @@ int main (int argc, char **argv)
 
         }
     }
-    cout<<data(0,0)<<endl;
-
     Ptr<ANN_MLP> network = cv::ml::ANN_MLP::load("/home/utkarsh/Downloads/mlp.yml");    
-    //cout<<h<<" "<<w<<endl;
     network->predict(data,result);
-    //cout<<"doo"<<endl;
-    //cout<<h<<" "<<w<<endl;
     if (network->isTrained())
     {
         for (int i=0; i<data.rows; ++i)
@@ -134,11 +129,8 @@ int main (int argc, char **argv)
                 mask[i]=1;
             else
                 mask[i]=0; 
-      		cout<<mask[i];//<<"doo";
         }
     }
-    //cout<<endl;
-    
     ros::Rate loop_rate(10);
 
     std_msgs::UInt16MultiArray msg;
@@ -148,10 +140,7 @@ int main (int argc, char **argv)
 
     pub.publish(msg);
     msg.data.clear();
-    //loop_rate.sleep();
+    loop_rate.sleep();
     }
-
-  //  for (int i=0;i<found_total_superpixels;i++)cout<<mask[i]<<" "; // prints the mask
-
 return 0;
 }
