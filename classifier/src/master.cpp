@@ -1,4 +1,5 @@
 #include "ros/ros.h"
+#include <ros/package.h>
 #include <cstdlib>
 #include <iostream>
 #include <fstream>
@@ -27,7 +28,7 @@ int flag=0;
 
 void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
 {
-  	flag=1;
+    flag=1;
     cv_bridge::CvImagePtr cv_ptr;
     try
     {
@@ -59,7 +60,7 @@ int main (int argc, char **argv)
     n.getParam("N",N);
 
     ros::Publisher pub= n.advertise<std_msgs::UInt16MultiArray>("predictions",1000);
-	
+    
     vector<int> mask(found_total_superpixels,4);
     cv::Mat image;
     image.create(cv::Size(N, N), CV_8UC3);
@@ -73,7 +74,7 @@ int main (int argc, char **argv)
 
     ros::spinOnce();
     if(flag==0)
-    	continue;
+        continue;
     
     cv::Size sz=image.size();
     int h=sz.height;
@@ -119,8 +120,12 @@ int main (int argc, char **argv)
 
         }
     }
-    Ptr<ANN_MLP> network = cv::ml::ANN_MLP::load("/home/utkarsh/Downloads/mlp.yml");    
+    std::string package_path = ros::package::getPath("classifier");
+    Ptr<ANN_MLP> network = cv::ml::ANN_MLP::load(package_path+"/src/mlp.yml");    
     network->predict(data,result);
+
+    
+
     if (network->isTrained())
     {
         for (int i=0; i<data.rows; ++i)
@@ -131,6 +136,17 @@ int main (int argc, char **argv)
                 mask[i]=0; 
         }
     }
+    /*
+    int just=0;
+    for (int i=0; i<data.rows; ++i)
+        {
+          if((just++)%5==0)
+              mask[i]=1;
+          else
+              mask[i]=0; 
+        }*/
+
+
     ros::Rate loop_rate(10);
 
     std_msgs::UInt16MultiArray msg;
@@ -140,7 +156,7 @@ int main (int argc, char **argv)
 
     pub.publish(msg);
     msg.data.clear();
-    loop_rate.sleep();
+    //loop_rate.sleep();
     }
 return 0;
 }
