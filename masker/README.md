@@ -6,4 +6,4 @@ It takes input following parameters from ROS params :-
 ### 1.found_total_superpixels:
 This , as the name suggests is the total number of superpixels in the image.
 ### 2. Value of N:
-It is the size of the desired matrix of superpixels from gSLICr, however the found_total_superpixels may noy always equal to N^2 ( This is an ambiguity in the algorithm itself )
+It is the size of the desired matrix of superpixels from gSLICr, however the found_total_superpixels may noy always equal to n^2 ( This is an ambiguity in the algorithm itself )
