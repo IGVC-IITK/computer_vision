@@ -5,7 +5,7 @@
 	<remap from = "/obstacle_free_image" to = "/zed/obstacle"/>
 	<node pkg = "top_view" type = "top_view_node" name = "top_view_node"/>
 
-	<node pkg="classifier" type="master" name="master">
+	<node pkg="classifier" type="classifier_node" name="classifier_node">
 		<param name="inner_superpixels" type="int" value="576"/>
 		<param name="found_total_superpixels" type = "int" value="676" />
 		<param name="N" type="int" value="26" /> 
