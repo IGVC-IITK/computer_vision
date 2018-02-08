@@ -6,7 +6,7 @@ find_package(catkin REQUIRED COMPONENTS cv_bridge image_transport roscpp rospy s
 
 
 #add_message_files(FILES Num.msg)
-add_service_files(FILES lane_classifier.srv)
+
 
 
 generate_messages(DEPENDENCIES std_msgs)
@@ -16,16 +16,6 @@ catkin_package()
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 
-##add_executable(talker src/talker.cpp)
-##target_link_libraries(talker ${catkin_LIBRARIES})
-
-##add_executable(listener src/listener.cpp)
-##target_link_libraries(listener ${catkin_LIBRARIES})
-
-#add_executable(client src/client.cpp)
-#target_link_libraries(client ${catkin_LIBRARIES})
-#add_dependencies(client classifier_gencpp)
-
-add_executable(master src/master.cpp)
-target_link_libraries(master ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
-add_dependencies(master classifier_gencpp)
+add_executable(classifier_node src/classifier_node.cpp)
+target_link_libraries(classifier_node ${catkin_LIBRARIES} ${OpenCV_LIBRARIES})
+add_dependencies(classifier_node classifier_gencpp)
