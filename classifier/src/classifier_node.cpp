@@ -121,7 +121,7 @@ int main (int argc, char **argv)
         }
     }
     std::string package_path = ros::package::getPath("classifier");
-    Ptr<ANN_MLP> network = cv::ml::ANN_MLP::load(package_path+"/src/mlp.yml");    
+    Ptr<ANN_MLP> network = cv::ml::ANN_MLP::load(package_path+"/src/mlp5layer.yml");    
     network->predict(data,result);
 
     
