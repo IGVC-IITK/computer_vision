@@ -6,6 +6,26 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include <sensor_msgs/Imu.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
+
+#define SUFF_DELAY 0.15 //calibrated delay between data arrival from image and IMU
+#define IMU_FREQ 50.0
+
+int reading_delay = (int) (SUFF_DELAY*IMU_FREQ); //go back these many IMU readings while calculating transform_gimbal
+int buffer_size = (int) (SUFF_DELAY*IMU_FREQ*2); //*2 for avoiding overflow
+int buffer_end = 0;
+double theta_buffer[(int) (SUFF_DELAY*IMU_FREQ*2)];
+
+void getTransform(const sensor_msgs::Imu &Imu)
+{
+	tf2::Matrix3x3 imu_orient(tf2::Quaternion(Imu.orientation.x, Imu.orientation.y, Imu.orientation.z, Imu.orientation.w));
+	double roll, pitch, yaw;
+	imu_orient.getRPY(roll, pitch, yaw, 1);
+	theta_buffer[buffer_end] = pitch;
+	buffer_end = (buffer_end+1)%buffer_size;
+}
+
 void imageCallback(const sensor_msgs::ImageConstPtr& msg, cv::Mat& birds_image, cv::Size& birds_size, cv::Mat& transform)
 {
 	try
@@ -27,57 +47,63 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg, cv::Mat& birds_image, 
 int main(int argc, char** argv)
 {
 	ros::init(argc, argv, "top_view_node");
-	ros::NodeHandle n;
+	ros::NodeHandle nh;
 
 	// Camera calibration parameters (in pixels)
 	double fx = 699.948, fy = 699.948, cx = 629.026, cy = 388.817;
 	// Camera position (in metres, degrees)
-	double H = 0.75, theta = 10.00;
-	theta *= (M_PI/180 );
+	double H = 0.76, theta = 31.50;
+	theta *= (M_PI/180.0);
 	// Defining desired field-of-view (in metres)
-	double Ox = 5.00, Oy = 5.00, Wx = 10.00, Wy = 10.00;
+	double Ox = 5.00, Oy = 5.00, Wx = 10.00, Wy = 5.00;
 	// Scaling factor (in pixels/m)
 	double s = 128.00;
 
-	// Calculating transformation matrix analytically
-	cv ::Mat transform(3, 3, CV_64FC1);
-
-	transform.at<double>(0, 0) = fx;
-	transform.at<double>(0, 1) = -cx*cos(theta);
-	transform.at<double>(0, 2) = s*(cx*(H*sin(theta)+Oy*cos(theta)) - Ox*fx);
-
-	transform.at<double>(1, 0) = 0;
-	transform.at<double>(1, 1) = fy*sin(theta) - cy*cos(theta);
-	transform.at<double>(1, 2) = s*(cy*(H*sin(theta)+Oy*cos(theta)) + 
-									fy*(H*cos(theta)-Oy*sin(theta)));
-
-	transform.at<double>(2, 0) = 0;
-	transform.at<double>(2, 1) = -cos(theta);
-	transform.at<double>(2, 2) = s*(H*sin(theta) + Oy*cos(theta));
-
-	// Normalizing transformation matrix
-	for (int i = 0; i < 3; ++i)
-		for (int j = 0; j < 3; ++j)
-		{
-			transform.at<double>(i, j) = 
-				transform.at<double>(i, j)/transform.at<double>(2, 2);
-		}
-	ROS_INFO_STREAM("Transformation Matrix:\n"<<transform);
-	
+	cv::Mat transform(3, 3, CV_64FC1);	
 	cv::Size birds_size(s*Wx, s*Wy);
 	cv::Mat birds_image(birds_size, CV_8UC3);
 	sensor_msgs::ImagePtr top_view_msg;
-	image_transport::ImageTransport it_tv(n);
-	image_transport::Subscriber sub = it_tv.subscribe("/image", 1, 
+	image_transport::ImageTransport it_tv(nh);
+	image_transport::Subscriber sub_img = it_tv.subscribe("/image", 1, 
 		boost::bind(imageCallback, _1, boost::ref(birds_image), boost::ref(birds_size), boost::ref(transform)));
-	image_transport::Publisher pub = it_tv.advertise("/top_view", 1);
+	ros::Subscriber sub_imu = nh.subscribe("/imu", 2000, getTransform);
+	image_transport::Publisher pub_tv = it_tv.advertise("/top_view", 1);
 	
-	ros::Rate loop_rate(10);
-	while(n.ok())
+	ros::Rate loop_rate(50);
+	while(nh.ok())
 	{
-		top_view_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", birds_image).toImageMsg();
-		pub.publish(top_view_msg);
 		ros::spinOnce();
+		int buffer_pointer = buffer_end - reading_delay;
+		if (buffer_pointer < 0)
+			buffer_pointer = buffer_pointer + buffer_size;
+		theta = theta_buffer[buffer_pointer];
+		ROS_INFO_STREAM("theta = "<<theta);
+
+		// Calculating transformation matrix analytically
+		transform.at<double>(0, 0) = fx;
+		transform.at<double>(0, 1) = -cx*cos(theta);
+		transform.at<double>(0, 2) = s*(cx*(H*sin(theta)+Oy*cos(theta)) - Ox*fx);
+
+		transform.at<double>(1, 0) = 0;
+		transform.at<double>(1, 1) = fy*sin(theta) - cy*cos(theta);
+		transform.at<double>(1, 2) = s*(cy*(H*sin(theta)+Oy*cos(theta)) + 
+										fy*(H*cos(theta)-Oy*sin(theta)));
+
+		transform.at<double>(2, 0) = 0;
+		transform.at<double>(2, 1) = -cos(theta);
+		transform.at<double>(2, 2) = s*(H*sin(theta) + Oy*cos(theta));
+
+		// Normalizing transformation matrix
+		for (int i = 0; i < 3; i++)
+			for (int j = 0; j < 3; j++)
+			{
+				transform.at<double>(i, j) = 
+					transform.at<double>(i, j)/transform.at<double>(2, 2);
+			}
+		ROS_INFO_STREAM("Transformation Matrix:\n"<<transform);
+
+		top_view_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", birds_image).toImageMsg();
+		pub_tv.publish(top_view_msg);
 
 		loop_rate.sleep();
 	}
