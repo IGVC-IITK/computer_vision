@@ -50,14 +50,25 @@ int main(int argc, char** argv)
 	ros::NodeHandle nh;
 
 	// Camera calibration parameters (in pixels)
+	// (Currently using the ones for ZED at 720p)
 	double fx = 699.948, fy = 699.948, cx = 629.026, cy = 388.817;
+
 	// Camera position (in metres, degrees)
-	double H = 0.76, theta = 31.50;
+	// Note that angle is not important if IMU is used
+	double H = 0.85, theta = 31.50;
 	theta *= (M_PI/180.0);
+
 	// Defining desired field-of-view (in metres)
-	double Ox = 5.00, Oy = 5.00, Wx = 10.00, Wy = 5.00;
+	// Ox and Oy are the position of the projection of the optical center on the 
+	// ground plane from (0, 0) of the top-view image
+	// Wx and Wy are the width and height of the top-view image
+	// x-axis is the direction pointing right in the top-view image
+	// y-axis is the direction pointing down in the top-view image
+	double Ox = 4.00, Oy = 5.00, Wx = 8.00, Wy = 4.50;
+
 	// Scaling factor (in pixels/m)
-	double s = 128.00;
+	// (Use 80.0 for realtime low-res output but 160.0 for datasets)
+	double s = 160.00;
 
 	cv::Mat transform(3, 3, CV_64FC1);	
 	cv::Size birds_size(s*Wx, s*Wy);
