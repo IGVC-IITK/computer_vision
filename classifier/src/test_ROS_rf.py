@@ -1,4 +1,3 @@
-
 from sklearn.externals import joblib
 import pickle
 import rospy
@@ -14,7 +13,6 @@ from sklearn.metrics import accuracy_score
 random_forest = joblib.load('rforest.pkl')
 features=75
 superpixels=1600
-
 
 def handle_classify(req):
 	d=np.zeros(features*superpixels)
