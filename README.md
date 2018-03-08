@@ -33,8 +33,8 @@ Modified for averaging of colors of pixels in each superpixel.
 
 gslicr_ros is the ROS implementation of gSLICr. It subscribes to the top_view image and publishes
 
-	* averaged rgb values of superpixels on the rostopic /gslicr/averages
-	* superpixel id of each pixel on the rostopic /gslicr/segmentation
+ * averaged rgb values of superpixels on the rostopic /gslicr/averages
+ * superpixel id of each pixel on the rostopic /gslicr/segmentation
 
 ## masker
 This package contains a node 'masker_node' that simply takes all the predictions from the classifer and all the superpixel id from gSLICr and masks the corresponding superpixels with the prediction values. It finally publishes the binary image on the rostopic /final_image.
