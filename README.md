@@ -1,7 +1,7 @@
 # Computer Vision
 Overview of the subsystem:
 
-![VISION Overview](vision.png)
+![VISION Overview](doc_images/vision.png)
 
 Note: Ellipses correspond to ROS Nodes and Rectangles correspond to the corresponding topics.
 
@@ -38,3 +38,13 @@ gslicr_ros is the ROS implementation of gSLICr. It subscribes to the top_view im
 
 ## masker
 This package contains a node 'masker_node' that simply takes all the predictions from the classifer and all the superpixel id from gSLICr and masks the corresponding superpixels with the prediction values. It finally publishes the binary image on the rostopic /final_image.
+
+![Masked Image](doc_images/masker.jpg)
+
+## top_view
+This node takes IMU sensor data to dynamically perform inverse perspective transform to get the top view of camera images and publishes the transformed image to the rostopic /top_view.
+
+![Transformed Image](doc_images/top_view.jpg)
+
+## zed-ros-wrapper
+[ZED ROS wrapper](https://github.com/stereolabs/zed-ros-wrapper) lets you use the ZED stereo camera with ROS. It outputs the camera left and right images, depth map, point cloud, odometry information and supports the use of multiple ZED cameras.
