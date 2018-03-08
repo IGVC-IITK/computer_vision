@@ -19,7 +19,8 @@ Note: Ellipses correspond to ROS Nodes and Rectangles correspond to the correspo
 This package contains the classifier_node and the launchfile for the full vision pipeline.
 The classifier_node takes averaged image and uses pre-trained random forrest model to predict each superpixel as lane/not lane and publishes the prediction array to rostopic /predictions.
 pipeline.launch is the launch file for the vision pipeline.
-Sequentially executes the following ros nodes :  
+Sequentially executes the following ros nodes :
+
 	- top_view
 	- gslicr_ros
 	- classifier
@@ -31,6 +32,7 @@ Sequentially executes the following ros nodes :
 Modified for averaging of colors of pixels in each superpixel.
 
 gslicr_ros is the ROS implementation of gSLICr. It subscribes to the top_view image and publishes
+
 	-averaged rgb values of superpixels on the rostopic /gslicr/averages
 	-superpixel id of each pixel on the rostopic /gslicr/segmentation
 
