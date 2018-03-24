@@ -112,14 +112,14 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
 
             if(i+i1==-1 || i+i1==-2 || j+j1==-1 || j+j1==-2 || i+i1==h+1 || i+i1==h || j+j1==w || j+j1==w+1)
             {
-                 srv.request.data.push_back(100);
-                 srv.request.data.push_back(150);
                  srv.request.data.push_back(50);
+                 srv.request.data.push_back(150);
+                 srv.request.data.push_back(100);
                 continue;    
             }
-        srv.request.data.push_back(red[i+i1][j+j1]);
-        srv.request.data.push_back(green[i+i1][j+j1]);
         srv.request.data.push_back(blue[i+i1][j+j1]);
+        srv.request.data.push_back(green[i+i1][j+j1]);
+        srv.request.data.push_back(red[i+i1][j+j1]);
         
       }
     }
