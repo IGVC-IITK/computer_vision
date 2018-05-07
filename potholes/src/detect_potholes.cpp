@@ -58,8 +58,8 @@ namespace
             // circle center
             circle( display, center, 3, Scalar(0,255,0), -1, 8, 0 );
             // circle outline
-            circle( display, center, radius, Scalar(255,255,0), 3, 8, 0 );
-            circle( binary, center, radius, Scalar(255,255,0), 3, 8, 0 );
+            circle( display, center, radius, Scalar(255,255,255), 3, 8, 0 );
+            circle( binary, center, radius, Scalar(255,255,255), 3, 8, 0 );
                
         }
 
@@ -118,7 +118,7 @@ sensor_msgs::ImagePtr imageToROSmsg(cv::Mat img, const std::string encodingType,
 int main(int argc, char** argv)
 {
     Mat src, src_gray ;
-    cv::Mat binary = cv::Mat::zeros(1170, 1560, CV_32F); // 1170 is height and 1560 is width
+    cv::Mat binary = cv::Mat::zeros(1170, 1560, CV_8UC3); // 1170 is height and 1560 is width
     ros::init(argc, argv, "potholes");
     ros::NodeHandle n;
 
