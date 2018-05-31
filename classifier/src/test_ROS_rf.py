@@ -2,7 +2,7 @@ from sklearn.externals import joblib
 import pickle
 import rospy
 from classifier.srv import *
-import pandas as pd
+#import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn import preprocessing
@@ -10,7 +10,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 
-random_forest = joblib.load('rforest.pkl')
+random_forest = joblib.load('rforest_big_full_USA.pkl')
 features=75
 superpixels=1600
 
