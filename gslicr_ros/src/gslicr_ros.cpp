@@ -104,8 +104,8 @@ int main(int argc, char **argv)
 	gSLICr::objects::settings my_settings;
 	my_settings.img_size.x = 640;
 	my_settings.img_size.y = 360;
-	my_settings.no_segs = 900;
-	my_settings.spixel_size = 16;
+	my_settings.no_segs = 32*18;
+	my_settings.spixel_size = 20;
 	my_settings.coh_weight = 0.6f;
 	my_settings.no_iters = 5;
 	my_settings.color_space = gSLICr::CIELAB; // gSLICr::CIELAB for Lab, or gSLICr::RGB for RGB
