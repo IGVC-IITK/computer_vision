@@ -102,35 +102,47 @@ int main(int argc, char **argv)
 
 	// gSLICr settings
 	gSLICr::objects::settings my_settings;
-	my_settings.img_size.x = 800;
-	my_settings.img_size.y = 800;
-	my_settings.no_segs = 1600;
-	my_settings.spixel_size = 100;
-	my_settings.coh_weight = 0.8f;
+	my_settings.img_size.x = 640;
+	my_settings.img_size.y = 360;
+	my_settings.no_segs = 900;
+	my_settings.spixel_size = 16;
+	my_settings.coh_weight = 0.6f;
 	my_settings.no_iters = 5;
 	my_settings.color_space = gSLICr::CIELAB; // gSLICr::CIELAB for Lab, or gSLICr::RGB for RGB
-	my_settings.seg_method = gSLICr::GIVEN_NUM; // or gSLICr::GIVEN_NUM for given number
+	my_settings.seg_method = gSLICr::GIVEN_SIZE; // or gSLICr::GIVEN_NUM for given number
 	my_settings.do_enforce_connectivity = true; // whether or not run the enforce connectivity step
-	int n = int(sqrt(my_settings.no_segs));
 
 	// instantiate a core_engine
 	gSLICr::engines::core_engine* gSLICr_engine = new gSLICr::engines::core_engine(my_settings);
 
-	// gSLICr takes gSLICr::UChar4Image as input and out put
+	// gSLICr takes gSLICr::UChar4Image as input and output
 	gSLICr::UChar4Image* in_img = new gSLICr::UChar4Image(my_settings.img_size, true, true);
 	gSLICr::UChar4Image* out_img = new gSLICr::UChar4Image(my_settings.img_size, true, true);
 
 	cv::Size outputSize(my_settings.img_size.x, my_settings.img_size.y);
+	int spixel_size;
+	if (my_settings.seg_method == gSLICr::GIVEN_NUM)
+	{
+		float cluster_size = (float)(my_settings.img_size.x * my_settings.img_size.y) / (float)my_settings.no_segs;
+		spixel_size = (int)ceil(sqrtf(cluster_size));
+	}
+	else
+	{
+		spixel_size = my_settings.spixel_size;
+	}
+	int spixels_x = (int)ceil(my_settings.img_size.x / spixel_size);
+	int spixels_y = (int)ceil(my_settings.img_size.y / spixel_size);
+	cv::Size gridSize(spixels_x, spixels_y);
 	string frame_id = "camera";
 	cv::Mat frame, boundary_draw_frame, sum_frame, count_frame, average_frame, average_rpl_frame;
 	frame.create(outputSize, CV_8UC3);
 	boundary_draw_frame.create(outputSize, CV_8UC3);
-	sum_frame.create(cv::Size(n, n), CV_32SC3);
-	count_frame.create(cv::Size(n, n), CV_16UC1);
-	average_frame.create(cv::Size(n, n), CV_8UC3);
+	sum_frame.create(gridSize, CV_32SC3);
+	count_frame.create(gridSize, CV_16UC1);
+	average_frame.create(gridSize, CV_8UC3);
 	average_rpl_frame.create(outputSize, CV_8UC3);
 	StopWatchInterface *my_timer; sdkCreateTimer(&my_timer);
-	std_msgs::UInt16MultiArray labels;
+	std_msgs::UInt16MultiArray labels;	
 	labels.data.resize(my_settings.img_size.x*my_settings.img_size.y);
 
 	image_transport::ImageTransport it_gslicr(nh);
@@ -170,25 +182,25 @@ int main(int argc, char **argv)
 		if(pub_seg.getNumSubscribers() > 0)
 			pub_seg.publish(labels);
 
-		// cv::resize(frame, average_frame, cv::Size(n, n));
+		// cv::resize(frame, average_frame, gridSize);
 		// pub_resize.publish(imageToROSmsg(average_frame, sensor_msgs::image_encodings::BGR8, frame_id, t));
 
 		// average colour values
 		if(pub_avg.getNumSubscribers() + pub_avg_rpl.getNumSubscribers() > 0)
 		{
 			// calculating the sum of the pixel values for each segment
-			sum_frame = cv::Mat::zeros(cv::Size(n, n), CV_32SC3);
-			count_frame = cv::Mat::zeros(cv::Size(n, n), CV_16UC1);
+			sum_frame = cv::Mat::zeros(gridSize, CV_32SC3);
+			count_frame = cv::Mat::zeros(gridSize, CV_16UC1);
 			for(int i=0; i<my_settings.img_size.x*my_settings.img_size.y; i++)
 			{
-				sum_frame.at<cv::Vec3i>(labels.data[i]/n, labels.data[i]%n)[0] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[0];
-				sum_frame.at<cv::Vec3i>(labels.data[i]/n, labels.data[i]%n)[1] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[1];
-				sum_frame.at<cv::Vec3i>(labels.data[i]/n, labels.data[i]%n)[2] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[2];
-				count_frame.at<ushort>(labels.data[i]/n, labels.data[i]%n) += 1;
+				sum_frame.at<cv::Vec3i>(labels.data[i]/spixels_x, labels.data[i]%spixels_x)[0] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[0];
+				sum_frame.at<cv::Vec3i>(labels.data[i]/spixels_x, labels.data[i]%spixels_x)[1] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[1];
+				sum_frame.at<cv::Vec3i>(labels.data[i]/spixels_x, labels.data[i]%spixels_x)[2] += frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[2];
+				count_frame.at<ushort>(labels.data[i]/spixels_x, labels.data[i]%spixels_x) += 1;
 			}
 			// calculating average colour values for each superpixel
-			for(int j=0; j<n; j++)
-				for(int i=0; i<n; i++)
+			for(int j=0; j<spixels_y; j++)
+				for(int i=0; i<spixels_x; i++)
 				{
 					if(count_frame.at<ushort>(j, i) != 0)
 					{
@@ -198,16 +210,16 @@ int main(int argc, char **argv)
 						average_frame.at<cv::Vec3b>(j, i)[2] = sum_frame.at<cv::Vec3i>(j, i)[2]/count_frame.at<ushort>(j, i);
 						if (average_frame.at<cv::Vec3b>(j, i)[0] < 16 && average_frame.at<cv::Vec3b>(j, i)[1] < 16 && average_frame.at<cv::Vec3b>(j, i)[2] < 16)
 						{
-							average_frame.at<cv::Vec3b>(j, i)[0] = 50;
-							average_frame.at<cv::Vec3b>(j, i)[1] = 150;
-							average_frame.at<cv::Vec3b>(j, i)[2] = 100;
+							average_frame.at<cv::Vec3b>(j, i)[0] = 0;
+							average_frame.at<cv::Vec3b>(j, i)[1] = 0;
+							average_frame.at<cv::Vec3b>(j, i)[2] = 0;
 						}
 					}
 					else	// for avoiding divide-by-zero error
 					{
-						average_frame.at<cv::Vec3b>(j, i)[0] = 50;
-						average_frame.at<cv::Vec3b>(j, i)[1] = 150;
-						average_frame.at<cv::Vec3b>(j, i)[2] = 100;
+						average_frame.at<cv::Vec3b>(j, i)[0] = 0;
+						average_frame.at<cv::Vec3b>(j, i)[1] = 0;
+						average_frame.at<cv::Vec3b>(j, i)[2] = 0;
 					}
 				}
 		}
@@ -219,9 +231,9 @@ int main(int argc, char **argv)
 		{
 			for(int i=0; i<my_settings.img_size.x*my_settings.img_size.y; i++)
 			{
-				average_rpl_frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[0] = average_frame.at<cv::Vec3b>(labels.data[i]/n, labels.data[i]%n)[0];
-				average_rpl_frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[1] = average_frame.at<cv::Vec3b>(labels.data[i]/n, labels.data[i]%n)[1];
-				average_rpl_frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[2] = average_frame.at<cv::Vec3b>(labels.data[i]/n, labels.data[i]%n)[2];
+				average_rpl_frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[0] = average_frame.at<cv::Vec3b>(labels.data[i]/spixels_x, labels.data[i]%spixels_x)[0];
+				average_rpl_frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[1] = average_frame.at<cv::Vec3b>(labels.data[i]/spixels_x, labels.data[i]%spixels_x)[1];
+				average_rpl_frame.at<cv::Vec3b>(i/my_settings.img_size.x, i%my_settings.img_size.x)[2] = average_frame.at<cv::Vec3b>(labels.data[i]/spixels_x, labels.data[i]%spixels_x)[2];
 			}
 			pub_avg_rpl.publish(imageToROSmsg(average_rpl_frame, sensor_msgs::image_encodings::BGR8, frame_id, t));
 		}
