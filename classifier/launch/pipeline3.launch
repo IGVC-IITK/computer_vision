@@ -1,5 +1,6 @@
 <?xml version="1.0"?>
 <launch>
+	<!-- <node pkg="classifier" type="test_ROS_rf.py" name="test_ROS_rf" /> -->
 	<node pkg="gslicr_ros" type="gslicr_ros_node" name="gslicr_ros_node"/>
 	<node pkg="image_transport" type="republish" name="republish" args="compressed in:=/top_view raw out:=/top_view" />
 	<node pkg="classifier" type="master" name="master">

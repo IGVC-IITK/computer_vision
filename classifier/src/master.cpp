@@ -30,7 +30,7 @@ int label[640*480]={0};
   return;
  }
 */
-int superpixels=1600;
+int superpixels=32*18;
 void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
   {
     cv_bridge::CvImagePtr cv_ptr;
@@ -74,7 +74,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& imgMessage, cv::Mat& image)
     //ros::Subscriber sub=n.subscribe("/gslicr/segmentation", 1000, messageCallback);
 
     cv::Mat image;
-    image.create(cv::Size(40, 40), CV_8UC3);
+    image.create(cv::Size(32, 18), CV_8UC3); // previously it was 40 X 40 
       image_transport::ImageTransport it_avg(n);
       image_transport::Subscriber sub_img = it_avg.subscribe("/gslicr/averages", 1, boost::bind(imageCallback, _1, boost::ref(image)));
       ros::Rate loop_rate(10);

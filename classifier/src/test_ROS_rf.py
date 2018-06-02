@@ -1,6 +1,8 @@
+#!/usr/bin/env python
 from sklearn.externals import joblib
 import pickle
 import rospy
+import os
 from classifier.srv import *
 #import pandas as pd
 import numpy as np
@@ -10,9 +12,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 
-random_forest = joblib.load('rforest_big_full_USA.pkl')
+__location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+random_forest = joblib.load(os.path.join(__location__, 'rforest_big_full_USA.pkl'))
 features=75
-superpixels=1600
+superpixels=32*18
 
 def handle_classify(req):
 	d=np.zeros(features*superpixels)

@@ -22,22 +22,24 @@
 #include <sensor_msgs/image_encodings.h>
 using namespace std;
 using namespace cv;
-int superpixels=1600;
-int N=40;
-int img_size=800;
+int superpixels=32*18;
+int w=32;
+int h=18; // ??? 32 X 18 chahiye
+int img_sizex=640;
+int img_sizey=360; // 640 X 360 chahiye
 int flag=0;
 
-int mask2d[40][40]={0};
+int mask2d[32][18]={0};
 //int mask[576]={0};
-int mask[1600]={0};
-int labels[800*800]={0};    
+int mask[32*18]={0};
+int labels[640*360]={0};    
 
 
 
 void labelsCallback(const std_msgs::UInt16MultiArray::ConstPtr& msg)
 {
 	flag=1;
-    for(int i=0;i<img_size*img_size;i++)
+    for(int i=0;i<img_sizex*img_sizey;i++)
         labels[i]=msg->data[i];   
 }
 void predictionsCallback(const std_msgs::UInt16MultiArray::ConstPtr& msg)
@@ -100,14 +102,14 @@ int main(int argc,char **argv)
     	}
     	
     	cv::Mat M1;
-        M1.create(cv::Size(800,800), CV_8UC3);
-    	for (int x=0;x<img_size;x++)
+        M1.create(cv::Size(640,360), CV_8UC3);
+    	for (int j=0;j<img_sizey;j++)
     	{
-    	    for(int y=0;y<img_size;y++)
+    	    for(int i=0;i<img_sizex;i++)
     	    {
-    	            M1.at<cv::Vec3b>(x,y)[0]=blue_sum[labels[x*img_size + y ]] ;// b
-    	            M1.at<cv::Vec3b>(x,y)[1]=green_sum[labels[x*img_size + y ]] ;// g
-    	            M1.at<cv::Vec3b>(x,y)[2]=red_sum[labels[x*img_size + y ]] ;// r
+    	            M1.at<cv::Vec3b>(j,i)[0]=blue_sum[labels[j*img_sizex + i ]] ;// b
+    	            M1.at<cv::Vec3b>(j,i)[1]=green_sum[labels[j*img_sizex + i ]] ;// g
+    	            M1.at<cv::Vec3b>(j,i)[2]=red_sum[labels[j*img_sizex + i ]] ;// r
     	    }
     	}
     	//cv::namedWindow("video",1);
