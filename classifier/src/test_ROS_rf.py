@@ -13,7 +13,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-random_forest = joblib.load(os.path.join(__location__, 'rforest_big_full_USA.pkl'))
+random_forest = joblib.load(os.path.join(__location__, 'final_rforest_big_full_USA.pkl'))
 features=75
 superpixels=32*18
 

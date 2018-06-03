@@ -55,7 +55,7 @@ int main(int argc, char** argv)
 
 	// Camera position (in metres, degrees)
 	// Note that angle is not important if IMU is used
-	double H = 0.85, theta = 31.50;
+	double H = 0.85, theta = 35.0;
 	theta *= (M_PI/180.0);
 
 	// Defining desired field-of-view (in metres)
@@ -87,7 +87,7 @@ int main(int argc, char** argv)
 		int buffer_pointer = buffer_end - reading_delay;
 		if (buffer_pointer < 0)
 			buffer_pointer = buffer_pointer + buffer_size;
-		theta = theta_buffer[buffer_pointer];
+		//theta = theta_buffer[buffer_pointer];
 		ROS_INFO_STREAM("theta = "<<theta);
 
 		// Calculating transformation matrix analytically
