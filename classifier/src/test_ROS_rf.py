@@ -13,7 +13,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 
 __location__ = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-random_forest = joblib.load(os.path.join(__location__, 'final_rforest_big_full_USA.pkl'))
+random_forest = joblib.load(os.path.join(__location__, 'bad.pkl'))
 features=75
 superpixels=32*18
 
@@ -26,6 +26,12 @@ def handle_classify(req):
 	for k in range(superpixels):
 		X[k]=d[features*k:features*k+features]
 	#print X
+	y=np.zeros(superpixels)
+	for i in range(superpixels):
+		if X[i][36] > 120 :
+			y[i]=1
+		else:
+			y[i]=0
 	y=random_forest.predict(X)
 	#print y
 	return lane_classifierResponse(y)
