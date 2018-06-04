@@ -90,12 +90,12 @@ sensor_msgs::ImagePtr imageToROSmsg(cv::Mat img, const std::string encodingType,
       }
       myfile.close();
     }*/
-    int h1=132;
-    int s1=70;
-    int v1=204;
-    int h2=31;
-    int s2=13;
-    int v2=93;
+    int h1=143;
+    int s1=41;
+    int v1=146;
+    int h2=73;
+    int s2=0;
+    int v2=66;
     /*fstream f;
     f.open("/home/bhatti/abhishek/params.txt");
     f>>h1;
@@ -182,15 +182,15 @@ sensor_msgs::ImagePtr imageToROSmsg(cv::Mat img, const std::string encodingType,
 
     detector->detect( out, keypoints);
     
-    cv::drawKeypoints( out, keypoints, im_with_keypoints, cv::Scalar(0,0,255), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
+    cv::drawKeypoints( out, keypoints, im_with_keypoints, cv::Scalar(0,0,0), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS );
     //cv::line(im_with_keypoints, cv::Point(0,0), cv::Point(100,100), cv::Scalar(0,0,255));
     
 
     cv::resize(im_with_keypoints, im_with_keypoints, cv::Size(160,90));
     //cv::imshow("before", im_with_keypoints );// Show blobs
 
-    
-    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2,2));
+    im_with_keypoints = (im_with_keypoints>0);
+    cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(1,1));
 
     cv::erode(im_with_keypoints,im_with_keypoints,element,cv::Point(-1,-1),1);
 
