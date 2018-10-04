@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- Starting ZED Camera and IMU drivers -->
+	<include file="$(find zed_wrapper)/launch/zed.launch" />
+	<include file="$(find razor_imu_9dof)/launch/razor-pub.launch"/>
+	<include file="$(find ros0xrobot)/launch/ros0xrobot_minimal.launch"/>
+	<include file="$(find ros0xrobot)/launch/ros0xrobot_teleop.launch"/>
+
+	<!-- Starting top_view_node and image_view for display -->
+	<node name="top_view_node" pkg="top_view" type="top_view_node" args="image:=/zed/rgb/image_rect_color" />
+	<node name="image_view" pkg="image_view" type="image_view" args="image:=/top_view" />
+</launch>

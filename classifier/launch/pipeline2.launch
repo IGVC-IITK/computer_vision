@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+	<node pkg="gslicr_ros" type="gslicr_ros_node" name="gslicr_ros_node"/>
+	<node pkg="image_transport" type="republish" name="republish" args="compressed in:=/top_view raw out:=/top_view" />
+	<node pkg="classifier" type="classifier_node" name="classifier_node">
+		<param name="inner_superpixels" type="int" value="576"/>
+		<param name="found_total_superpixels" type = "int" value="676" />
+		<param name="N" type="int" value="26" /> 
+	</node>
+
+	<node pkg="masker" type="masker_node" name="masker_node">
+		<param name="inner_N" type="int" value="24"/>
+		<param name="outer_N" type = "int" value="26" />
+		<param name="img_size" type="int" value="500" /> 
+		<param name="inner_superpixels" type="int" value="576"/>
+	</node>
+	
+	<node pkg="image_view" type="image_view" name="image_view" respawn="false" output="screen">
+	<remap from="image" to="/final_image" />
+	</node>
+</launch>

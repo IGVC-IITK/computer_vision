@@ -1,0 +1,6 @@
+<?xml version="1.0"?>
+<launch>
+	<remap from = "/obstacle_free_image" to = "/zed/obstacle"/>
+	<include file="$(find top_view)/launch/automated_top_view.launch"/>
+	<node pkg="classifier" type="thresholder" name="thresholder" />
+</launch>
