@@ -30,7 +30,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg, cv::Mat& birds_image, 
 {
 	try
 	{
-		cv::Mat perspective_image=cv_bridge::toCvShare(msg, "bgr8")->image;
+		cv::Mat perspective_image=cv_bridge::toCvShare(msg, "8UC1")->image;
 		if(!perspective_image.empty())
 		{
 			cv::warpPerspective(perspective_image, birds_image, transform, birds_size, 
@@ -40,7 +40,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg, cv::Mat& birds_image, 
 	}
 	catch (cv_bridge::Exception& e)
 	{
-		ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
+		ROS_ERROR("Could not conver22t from '%s' to '8UC1'.", msg->encoding.c_str());
 	}
 }
 
@@ -51,8 +51,9 @@ int main(int argc, char** argv)
 
 	// Camera calibration parameters (in pixels)
 	// (Currently using the ones for ZED at 720p)
-	double fx = 699.948, fy = 699.948, cx = 629.026, cy = 388.817;
-
+	//double fx = 699.948, fy = 699.948, cx = 629.026, cy = 388.817;
+    // This is now for the logitec monocular
+    double fx = 887.913, fy = 896.602, cx = 280.680, cy = 264.339;
 	// Camera position (in metres, degrees)
 	// Note that angle is not important if IMU is used
 	double H = 1.05, theta = 30.0;
@@ -72,7 +73,7 @@ int main(int argc, char** argv)
 
 	cv::Mat transform(3, 3, CV_64FC1);	
 	cv::Size birds_size(s*Wx, s*Wy);
-	cv::Mat birds_image(birds_size, CV_8UC3);
+	cv::Mat birds_image(birds_size, CV_8UC1);
 	sensor_msgs::ImagePtr top_view_msg;
 	image_transport::ImageTransport it_tv(nh);
 	image_transport::Subscriber sub_img = it_tv.subscribe("/image", 1, 
@@ -113,7 +114,7 @@ int main(int argc, char** argv)
 			}
 		ROS_INFO_STREAM("Transformation Matrix:\n"<<transform);
 
-		top_view_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", birds_image).toImageMsg();
+		top_view_msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", birds_image).toImageMsg();
 		pub_tv.publish(top_view_msg);
 
 		loop_rate.sleep();

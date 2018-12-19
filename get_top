@@ -1,0 +1,1 @@
+python ~/catkin/src/image/src/handle_classify.py & roslaunch top_view top_view2.launch

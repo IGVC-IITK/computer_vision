@@ -143,6 +143,22 @@ include_directories(
     ${OpenCV_LIBRARIES}
  )
 
+
+ add_executable(top_view_node2 src/top_view_node2.cpp)
+
+## Add cmake target dependencies of the executable
+## same as for the library above
+ add_dependencies(top_view_node2 ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+
+## Specify libraries to link a library or executable target against
+ target_link_libraries(top_view_node2
+   ${catkin_LIBRARIES}
+    ${OpenCV_LIBRARIES}
+ )
+
+
+
+
 #############
 ## Install ##
 #############

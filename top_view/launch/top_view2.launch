@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+	<!-- Starting ZED Camera and IMU drivers -->
+	<!-- Starting top_view_node and image_view for display -->
+    <node name="top_view_node2" pkg="top_view" type="top_view_node2" args="image:=/binary_unwarped" />
+	<node name="image_view" pkg="image_view" type="image_view" args="image:=/top_view" />
+</launch>
