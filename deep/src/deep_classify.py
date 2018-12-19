@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from model import unet
 global model
-model=unet('model.h5')
+model=unet('/home/abhishek/catkin/src/deep/src/model.h5')
 model._make_predict_function()
 class image_converter:
 
@@ -36,6 +36,9 @@ class image_converter:
     y = model.predict(x)
     y = y.reshape(128,128)
     y = 255*(y*2555555 > 100)
+    y = y.astype(np.uint8)
+    y = cv2.resize(y,(640,480))
+    y = 255*(y>100)
     y = y.astype(np.uint8)
     try:
       self.image_pub.publish(self.bridge.cv2_to_imgmsg(y,"8UC1"))
