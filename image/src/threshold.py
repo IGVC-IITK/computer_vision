@@ -1,24 +1,13 @@
 #!/usr/bin/env python
 from __future__ import print_function
 
-import sys
 import cv2
-import matplotlib.pyplot as plt
-import os, glob
 import numpy as np
-import math
-import matplotlib.pyplot as plt
-import scipy.fftpack as fp
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-from time import time
-import json
-from PIL import Image
 
 
 
 nwindows=20
-polydeg=7
+polydeg=3
 hue_thresh = 0
 sat_thresh = 0
 val_thresh = 172

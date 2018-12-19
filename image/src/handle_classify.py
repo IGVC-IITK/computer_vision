@@ -5,15 +5,12 @@ import roslib
 roslib.load_manifest('image')
 import sys
 import rospy
-from std_msgs.msg import String
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge, CvBridgeError
-import os, glob
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from threshold import thresholdModel
-# from advanced_lane_detection.advanced import advancedModel
 from fit import drawLane
 c=0
 class image_converter:
@@ -24,6 +21,7 @@ class image_converter:
     self.bridge = CvBridge()
     self.image_sub = rospy.Subscriber("/cv_camera/image_raw",Image,self.callback)
     # self.image_sub = rospy.Subscriber("/zed/left/image_rect_color",Image,self.callback)
+    # self.image_sub = rospy.Subscriber("/top_view",Image,self.callback)
 
   def callback(self,data):
     try:

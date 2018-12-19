@@ -1,38 +1,13 @@
-
-
-# from skimage.io import imread
-import matplotlib.pyplot as plt
-import scipy.fftpack as fp
 import numpy as np
 import cv2
-import numpy as np
-import cv2
-import matplotlib.pyplot as plt
-import matplotlib.image as mpimg
-# import pickle
-from time import time
-import json
-import time
 from PIL import Image
 
+# Choose the number of sliding windows
 nwindows=20
-
+# Choose the degree of polynomial line fitting
 polydeg=3
 
-def denoise(mask,kernel_size,iterations):
-    element = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_size,kernel_size))
-    for i in range(iterations):
-        mask = cv2.erode(mask, element, iterations = 1)
-        mask = cv2.erode(mask, element, iterations = 1)
-        mask = cv2.dilate(mask, element, iterations = 1)
-        mask = cv2.dilate(mask, element, iterations = 1)
-    return mask
-
-
 def line_fit(binary_warped):
-	"""
-	Find and fit lane lines
-	"""
 	# Assuming you have created a warped binary image called "binary_warped"
 	# Take a histogram of the bottom half of the image
 	histogram = np.sum(binary_warped[:,:], axis=0)
@@ -43,10 +18,6 @@ def line_fit(binary_warped):
 	midpoint = np.int(histogram.shape[0]/2)
 	leftx_base = np.argmax(histogram[:midpoint])
 	rightx_base = np.argmax(histogram[midpoint:])+midpoint
-
-	# Choose the number of sliding windows
-	# Defined as global
-
 	# Set height of windows
 	window_height = np.int(binary_warped.shape[0]/nwindows)
 	# Identify the x and y positions of all nonzero pixels in the image
@@ -106,10 +77,10 @@ def line_fit(binary_warped):
 	ret = {}
 	ret['left_fit'] = left_fit
 	ret['right_fit'] = right_fit
-	ret['left_x']=leftx
-	ret['left_y']=lefty
-	ret['right_x']=rightx
-	ret['right_y']=righty
+	ret['left_max_pt']=max(lefty)
+	ret['left_min_pt']=min(lefty)
+	ret['right_max_pt']=max(righty)
+	ret['right_min_pt']=min(righty)
 	ret['nonzerox'] = nonzerox
 	ret['nonzeroy'] = nonzeroy
 	ret['out_img'] = out_img
@@ -120,113 +91,78 @@ def line_fit(binary_warped):
 
 
 def drawLane(img):
-	mask = np.zeros(shape=(img.shape[0],img.shape[1]))
-	mask [0:120,:]=1
-	mask = mask == 0
-	i=img*mask
-	i=denoise(i,2,1)
-	res = line_fit(i)
-
-	f=Image.fromarray(i)
-	# f.show()
-
-
+	res = line_fit(img)
+	# Polyfit equation constants
 	left_w=np.zeros(shape=(1,polydeg+1))
 	right_w=np.zeros(shape=(1,polydeg+1))
-	left_w[0] = res['left_fit'] # order is x^polydeg ,... , x^2 , X^1 , x^0
-	right_w[0] = res['right_fit']
-
-	left_lane=[]
-	right_lane=[]
+	left_w[0] = res['left_fit'] 
+	right_w[0] = res['right_fit'] # Order is x^polydeg ,... , x^2 , X^1 , x^0
 	num=nwindows
+	# X coordinate of final lane points
 	left_x =  np.arange(0, img.shape[0], int(img.shape[0]/num))
 	right_x =  np.arange(0, img.shape[0], int(img.shape[0]/num))
-
+	# Making blank polynomial matrix
 	left_features = np.zeros(shape=(num,polydeg+1))
-	for j in range(polydeg):
-		left_features[:,j] = left_x**(polydeg-j)
-	left_features[:,polydeg] = np.ones(num)
-
 	right_features = np.zeros(shape=(num,polydeg+1))
-	right_features[:,polydeg] = np.ones(num)
-	for j in range(polydeg):
+	for j in range(polydeg): 
+		left_features[:,j] = left_x**(polydeg-j)
 		right_features[:,j] = right_x**(polydeg-j)
+	left_features[:,polydeg] = np.ones(num)
 	right_features[:,polydeg] = np.ones(num)
-
-	y_left = np.dot(left_w,np.transpose(left_features))
-	y_right = np.dot(right_w,np.transpose(right_features))
-
+	# Y coordinate of final lane points
+	left_y = np.dot(left_w,np.transpose(left_features)) 
+	right_y = np.dot(right_w,np.transpose(right_features))
+	# List of all left lane points
 	pts_left = np.zeros(shape=(2,num))
-	pts_left[0] = y_left
+	pts_left[0] = left_y
 	pts_left[1] = left_x
 	pts_left=np.transpose(pts_left)
-
+	# List of all right lane points
 	pts_right = np.zeros(shape=(2,num))
-	pts_right[0] = y_right
+	pts_right[0] = right_y
 	pts_right[1] = right_x
 	pts_right=np.transpose(pts_right)
-
+	# Necessary conversions
 	pts_left = pts_left.astype(int)
 	pts_right = pts_right.astype(int)
-
-	# for i in range(pts_left.shape[0]):
-	# 	print(pts_left, "   ",pts_right)
-
 	pts_left = pts_left.reshape((-1,1,2))
 	pts_right = pts_right.reshape((-1,1,2))
-
-	leftx=res['left_x']
-	lefty=res['left_y']
-	rightx=res['right_x']
-	righty=res['right_y']
-
-	# print(leftx.shape[0],"     ", lefty.shape[0])
-	# print(rightx.shape[0],"     ", righty.shape[0])
-
-
-	left = np.zeros(shape=(2,leftx.shape[0]))
-	left[0] = leftx
-	left[1] = lefty
-	left=np.transpose(left)
-
-	right = np.zeros(shape=(2,rightx.shape[0]))
-	right[0] = rightx
-	right[1] = righty
-	right=np.transpose(right)
-
-	left = left.astype(int)
-	right = right.astype(int)
-
-
-	left = left.reshape((-1,1,2))
-	right = right.reshape((-1,1,2))
-
+	# Declare blank lanes
 	llane = np.zeros(shape=(img.shape[0],img.shape[1]))
 	rlane = np.zeros(shape=(img.shape[0],img.shape[1]))
-
-	right_max_pt=max(righty)
-	right_min_pt=min(righty)
-	left_max_pt=max(lefty)
-	left_min_pt=min(lefty)
-
-	#using polyfit
-	llane=cv2.polylines(llane,[pts_left],False,(255,255,255),2)
-	llane[:left_min_pt,:]=0
-	llane[left_max_pt:,:]=0
-	rlane=cv2.polylines(rlane,[pts_right],False,(255,255,255),2)
-	rlane[:right_min_pt,:]=0
-	rlane[right_max_pt:,:]=0
-        rlane[right_max_pt:,:]=0
-	gl=Image.fromarray(llane)
-	gr=Image.fromarray(rlane)
+	# Using polyfit
+	llane=cv2.polylines(llane,[pts_left],False,(255,255,255),2) # Left lane
+	rlane=cv2.polylines(rlane,[pts_right],False,(255,255,255),2) # Right lane
+	# Upper and lower end points of lanes
+	ymax=img.shape[1]
+	right_max_pt=res['right_max_pt']
+	right_min_pt=res['right_min_pt']
+	left_max_pt=res['left_max_pt']
+	left_min_pt=res['left_min_pt']
+	# Removing upper and lower extrapolations
+	llane[:max(0,left_min_pt-1),:]=0 
+	llane[min(left_max_pt+1,ymax):,:]=0
+	rlane[:max(0,right_min_pt-1),:]=0
+	rlane[min(right_max_pt+1,ymax):,:]=0
+	# Display Normal Image for testing
+	f=Image.fromarray(img)
+	# f.show()
+	# Display Rectangle Image for testing
 	t=res['out_img']
 	h=Image.fromarray(t)
+	# h.show()
+	# Adding left and right lanes to one image
 	img = cv2.addWeighted(llane,1,rlane,1,0)
 	return img,t
 
+########################################## For testing only ###################################
 
-#img=cv2.imread('gs.jpg',0)
-#img = cv2.resize(img,(640,480))
-#c,d=drawLane(img)
-#plt.imshow(d)
-#plt.show()
+# img=cv2.imread('top_view_out.jpg',0)
+# img_lane=drawLane(img)
+# img_lane=img_lane.astype(np.uint8)
+# img_orig=cv2.imread('top_view.jpg',0)
+# img_orig=cv2.resize(img_orig,(img_orig.shape[1]//2,img_orig.shape[0]//2))
+# img_orig=img_orig.astype(np.uint8)
+# img_comb=cv2.addWeighted(img_orig,0.5,img_lane,0.5,0)
+# disp_comb=Image.fromarray(img_comb)
+# disp_comb.show()
