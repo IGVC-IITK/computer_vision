@@ -7,5 +7,5 @@ This is a fully convolutional network which is trained on a dataset of `50` RGB 
 The node `deep_classify.py` subscribes to an unwarped RGB image from the topic `\cv_camera\image_raw` and publishes an unwarped predicted image to topic `\binary_unwarped`. The following images show the output of the image for the given RGB image.
 ![U-Net predictions](../unet_test.jpg)
 ## Trained Model
-You can find the trained model in the following link
-![Trained model](https://drive.google.com/file/d/1Dq680kaiv7DvDM4qOZNRaFvTbwFYEhHn/view)
+You can find the trained model in the following link <br/>
+[Trained model] : https://drive.google.com/file/d/1Dq680kaiv7DvDM4qOZNRaFvTbwFYEhHn/view
