@@ -8,4 +8,4 @@ The node `deep_classify.py` subscribes to an unwarped RGB image from the topic `
 ![U-Net predictions](../unet_test.jpg)
 ## Trained Model
 You can find the trained model in the following link <br/>
-[Trained model] : https://drive.google.com/file/d/1Dq680kaiv7DvDM4qOZNRaFvTbwFYEhHn/view
+https://drive.google.com/file/d/1Dq680kaiv7DvDM4qOZNRaFvTbwFYEhHn/view
