@@ -2,6 +2,8 @@
 
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/image_encodings.h>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -28,9 +30,15 @@ void getTransform(const sensor_msgs::Imu &Imu)
 
 void imageCallback(const sensor_msgs::ImageConstPtr& msg, cv::Mat& birds_image, cv::Size& birds_size, cv::Mat& transform)
 {
+	std::string image_format;
+	if (msg->encoding == sensor_msgs::image_encodings::BGR8)
+		image_format = "8UC3";
+	else if (msg->encoding == sensor_msgs::image_encodings::MONO8)
+		image_format = "8UC1";
+
 	try
 	{
-		cv::Mat perspective_image=cv_bridge::toCvShare(msg, "bgr8")->image;
+		cv::Mat perspective_image=cv_bridge::toCvShare(msg, image_format)->image;
 		if(!perspective_image.empty())
 		{
 			cv::warpPerspective(perspective_image, birds_image, transform, birds_size, 
@@ -40,7 +48,7 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg, cv::Mat& birds_image, 
 	}
 	catch (cv_bridge::Exception& e)
 	{
-		ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg->encoding.c_str());
+		ROS_ERROR("Could not convert from '%s' to '%s'.", msg->encoding.c_str(), image_format.c_str());
 	}
 }
 
@@ -51,11 +59,13 @@ int main(int argc, char** argv)
 
 	// Camera calibration parameters (in pixels)
 	// (Currently using the ones for ZED at 720p)
-	double fx = 699.948, fy = 699.948, cx = 629.026, cy = 388.817;
+	// double fx = 699.948, fy = 699.948, cx = 629.026, cy = 388.817;
+	// (Currently using the ones for Logitech C615)
+	double fx = 635.390503, fy = 631.630005, cx = 310.090906, cy = 321.387747;
 
 	// Camera position (in metres, degrees)
 	// Note that angle is not important if IMU is used
-	double H = 1.05, theta = 30.0;
+	double H = 1.5, theta = 40.00;
 	theta *= (M_PI/180.0);
 
 	// Defining desired field-of-view (in metres)
@@ -64,15 +74,15 @@ int main(int argc, char** argv)
 	// Wx and Wy are the width and height of the top-view image
 	// x-axis is the direction pointing right in the top-view image
 	// y-axis is the direction pointing down in the top-view image
-	double Ox = 4.00, Oy = 5.00, Wx = 8.00, Wy = 4.50;
+	double Ox = 3.20, Oy = 6.30, Wx = 6.40, Wy = 4.80;
 
 	// Scaling factor (in pixels/m)
 	// (Use 80.0 for realtime low-res output but 160.0 for datasets)
-	double s = 160.00;
+	double s = 100.0;
 
 	cv::Mat transform(3, 3, CV_64FC1);	
 	cv::Size birds_size(s*Wx, s*Wy);
-	cv::Mat birds_image(birds_size, CV_8UC3);
+	cv::Mat birds_image(birds_size, CV_8UC1);
 	sensor_msgs::ImagePtr top_view_msg;
 	image_transport::ImageTransport it_tv(nh);
 	image_transport::Subscriber sub_img = it_tv.subscribe("/image", 1, 
@@ -113,7 +123,13 @@ int main(int argc, char** argv)
 			}
 		ROS_INFO_STREAM("Transformation Matrix:\n"<<transform);
 
-		top_view_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", birds_image).toImageMsg();
+		std::string image_format;
+		if (birds_image.type() == CV_8UC3)
+			image_format = sensor_msgs::image_encodings::BGR8;
+		else if (birds_image.type() == CV_8UC1)
+			image_format = sensor_msgs::image_encodings::MONO8;
+		top_view_msg = cv_bridge::CvImage(std_msgs::Header(), image_format.c_str(), birds_image).toImageMsg();
+
 		pub_tv.publish(top_view_msg);
 
 		loop_rate.sleep();
