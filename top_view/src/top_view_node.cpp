@@ -123,12 +123,15 @@ int main(int argc, char** argv)
 			}
 		ROS_INFO_STREAM("Transformation Matrix:\n"<<transform);
 
+		std_msgs::Header image_header;
+		image_header.stamp = ros::Time::now();
+		image_header.frame_id = "top_view";
 		std::string image_format;
 		if (birds_image.type() == CV_8UC3)
 			image_format = sensor_msgs::image_encodings::BGR8;
 		else if (birds_image.type() == CV_8UC1)
 			image_format = sensor_msgs::image_encodings::MONO8;
-		top_view_msg = cv_bridge::CvImage(std_msgs::Header(), image_format.c_str(), birds_image).toImageMsg();
+		top_view_msg = cv_bridge::CvImage(image_header, image_format.c_str(), birds_image).toImageMsg();
 
 		pub_tv.publish(top_view_msg);
 
