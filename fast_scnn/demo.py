@@ -24,7 +24,7 @@ print('Device name: ', torch.cuda.get_device_properties(gpuid).name)
 device = torch.device(f'cuda:{gpuid}' if torch.cuda.is_available() else 'cpu')
 print('Device id: ', device)
 
-model = FastSCNN(in_channel=1, num_classes=2).to(device)
+model = FastSCNN(in_channel=1, width_multiplier=0.5, num_classes=2).to(device)
 load_model(model, './model_gray')
 
 cap = cv2.VideoCapture('igvc_test_vid.mp4')
@@ -50,14 +50,11 @@ while cap.isOpened():
     img = img_to_tensor(img).unsqueeze(0).to(device)
 
     # Getting output from model
-    output = model(img).detach().cpu()
+    output = torch.nn.Softmax2d()(model(img)).detach().cpu()
 
     # Select one of the below for probabilistic or deterministic mask respectively.
-    mask = np.divide(np.exp(output[:, 1]), np.exp(output[0]) + np.exp(output[:, 1]))
-    # mask = torch.argmax(output, 1).detach().cpu().numpy().astype(np.uint8)
-
-    label = np.zeros([480, 640, 1], np.uint8)
-    label[:, :, 0] = mask[0]*255.0
+    label = (output[0, 1, :, :].numpy()*255.0).astype(np.uint8)
+    # label = (torch.argmax(output, 1).numpy()[0]*255).astype(np.uint8)
 
     cv2.imshow('Input',  frame)
     cv2.imshow('Output', label)
@@ -76,9 +73,9 @@ while cap.isOpened():
     num_frames = num_frames + 1
     finish = time.time()
     if finish > start + 1:
-    	print("Average FPS:", num_frames/(finish - start))
-    	num_frames = 0
-    	start = time.time()
+        print("Average FPS:", num_frames/(finish - start))
+        num_frames = 0
+        start = time.time()
 
 cap.release()
 cv2.destroyAllWindows()
