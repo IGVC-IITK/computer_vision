@@ -19,17 +19,23 @@ from utils.common_utils import load_model
 # For profiling performance
 import time
 
-gpuid = 0
-print('Device name: ', torch.cuda.get_device_properties(gpuid).name)
-device = torch.device(f'cuda:{gpuid}' if torch.cuda.is_available() else 'cpu')
-print('Device id: ', device)
+# Setting and checking device
+gpuid=0
+device = torch.device('cuda:'+str(gpuid) if torch.cuda.is_available() else 'cpu')
+torch.cuda.device(device)
+print('Device name:', torch.cuda.get_device_properties(device).name)
+print('Device id:  ', device)
 
+# Loading model and parameters
 model = FastSCNN(in_channel=1, width_multiplier=0.5, num_classes=2).to(device)
 load_model(model, './model_gray')
+torch.no_grad()
 
+# Opening test video
 cap = cv2.VideoCapture('igvc_test_vid.mp4')
 paused = False;
 
+# Inference for each frame
 num_frames = 0;
 start = time.time()
 while cap.isOpened():
