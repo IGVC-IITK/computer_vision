@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 
 
 def train_net(model, dataloaders, datasizes, classes,
-                criterion, optimizer, scheduler, device, num_epochs=20):
+              criterion, optimizer, scheduler, device, num_epochs=20):
     since = time.time()
 
     losses = {'train': [], 'val': []}

@@ -7,6 +7,7 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+import math
 
 
 # #### Level 1 (Building Blocks)
@@ -76,24 +77,26 @@ class InvertedResidualBlock(nn.Module):
 
 class PyramidPoolingBlock(nn.Module):
     # As described in PSPNet (Pyramid Scene Parsing Network)
-    def __init__(self, in_channels, out_channels, bin_sizes=[1, 2, 3, 6]):
+    def __init__(self, in_channels, spatial_dim, out_channels, bin_sizes=[1, 2, 3, 6]):
         super().__init__()
         inter_channels = in_channels//len(bin_sizes)
         total_channels = in_channels + inter_channels*len(bin_sizes)
+        self.spatial_dim = spatial_dim
         self.levels = nn.ModuleList()
         for i in range(0, len(bin_sizes)):
+            avg_pool_kernel_size = (spatial_dim[0]//bin_sizes[i], spatial_dim[1]//bin_sizes[i])
+            avg_pool_stride = avg_pool_kernel_size
             self.levels.append(nn.Sequential(
-                nn.AdaptiveAvgPool2d(bin_sizes[i]),
+                nn.AvgPool2d(avg_pool_kernel_size, avg_pool_stride),
                 nn.Conv2d(in_channels, inter_channels, kernel_size=1, stride=1, padding=0, dilation=1, groups=1)
             ))
         self.out_conv = ConvBlock(total_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, groups=1, relu=True)
 
     def forward(self, x):
-        spatial_dim = x.size()[2:4]
         feature_map = x
         for i in range(0, len(self.levels)):
             level = self.levels[i](feature_map)
-            level = F.interpolate(level, spatial_dim, mode='bilinear', align_corners=True)
+            level = F.interpolate(level, self.spatial_dim, mode='nearest')
             x = torch.cat([x, level], dim=1)
         return self.out_conv(x)
 
@@ -120,8 +123,10 @@ class LearningToDownsample(nn.Module):
 
 
 class GlobalFeatureExtractor(nn.Module):
-    def __init__(self, alpha):
+    def __init__(self, spatial_dim, alpha):
         super().__init__()
+        pre_pool_spatial_dim = (math.ceil(math.ceil(spatial_dim[0]/2)/2),
+                                math.ceil(math.ceil(spatial_dim[1]/2)/2))
         self.global_feature_extractor = nn.Sequential(
             # Sequence 1
             InvertedResidualBlock(round(64*alpha), round(64*alpha), kernel_size=3, stride=2, padding=1, dilation=1, expand_ratio=6),
@@ -136,7 +141,7 @@ class GlobalFeatureExtractor(nn.Module):
             InvertedResidualBlock(round(128*alpha), round(128*alpha), kernel_size=3, stride=1, padding=1, dilation=1, expand_ratio=6),
             InvertedResidualBlock(round(128*alpha), round(128*alpha), kernel_size=3, stride=1, padding=1, dilation=1, expand_ratio=6),
             # Pyramid Pooling
-            PyramidPoolingBlock(round(128*alpha), round(128*alpha), bin_sizes=[1, 2, 3, 6])
+            PyramidPoolingBlock(round(128*alpha), pre_pool_spatial_dim, round(128*alpha), bin_sizes=[1, 2, 3, 6])
         )
         
     def forward(self, x):
@@ -147,8 +152,9 @@ class GlobalFeatureExtractor(nn.Module):
 
 
 class FeatureFusion(nn.Module):
-    def __init__(self, alpha):
+    def __init__(self, spatial_dim, alpha):
         super().__init__()
+        self.spatial_dim = spatial_dim
         self.conv_high_res_pw = nn.Conv2d(round(64*alpha), round(128*alpha), kernel_size=1, stride=1, padding=0, dilation=1, groups=1)
         self.conv_low_res_dw = ConvBlock(round(128*alpha), round(128*alpha), kernel_size=3, stride=1, padding=4, dilation=4, groups=round(128*alpha), relu=True)
         self.conv_low_res_pw = nn.Conv2d(round(128*alpha), round(128*alpha), kernel_size=1, stride=1, padding=0, dilation=1, groups=1)
@@ -158,8 +164,7 @@ class FeatureFusion(nn.Module):
         # First Branch
         high_res_input = self.conv_high_res_pw(high_res_input)
         # Second Branch
-        spatial_dim = high_res_input.size()[2:4]
-        low_res_input = F.interpolate(low_res_input, spatial_dim, mode='bilinear', align_corners=True)
+        low_res_input = F.interpolate(low_res_input, self.spatial_dim, mode='nearest')
         low_res_input = self.conv_low_res_dw(low_res_input)
         low_res_input = self.conv_low_res_pw(low_res_input)
         # Fusing Both
@@ -191,17 +196,18 @@ class Classifier(nn.Module):
 
 
 class FastSCNN(nn.Module):
-    def __init__(self, in_channels, width_multiplier, num_classes, dropout_prob=0.5):
+    def __init__(self, in_channels, spatial_dim, width_multiplier, num_classes, dropout_prob=0.5):
         super().__init__()
         # alpha is the width_multiplier as described in the MobileNets paper
         alpha = width_multiplier
         self.learning_to_downsample = LearningToDownsample(in_channels, alpha)
-        self.global_feature_extractor = GlobalFeatureExtractor(alpha)
-        self.feature_fusion = FeatureFusion(alpha)
+        spatial_dim_ds = (math.ceil(math.ceil(math.ceil(spatial_dim[0]/2)/2)/2),
+                          math.ceil(math.ceil(math.ceil(spatial_dim[1]/2)/2)/2))
+        self.global_feature_extractor = GlobalFeatureExtractor(spatial_dim_ds, alpha)
+        self.feature_fusion = FeatureFusion(spatial_dim_ds, alpha)
         self.classifier = Classifier(alpha, num_classes, dropout_prob)
         
     def forward(self, x):
-        spatial_dim = x.size()[2:4]
         x = self.learning_to_downsample(x)
         y = self.global_feature_extractor(x)
         x = self.feature_fusion(x, y)

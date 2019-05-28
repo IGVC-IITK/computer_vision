@@ -27,7 +27,11 @@ print('Device name:', torch.cuda.get_device_properties(device).name)
 print('Device id:  ', device)
 
 # Loading model and parameters
-model = FastSCNN(in_channels=3, width_multiplier=0.5, num_classes=3).to(device)
+in_channels = 3
+spatial_dim = (720, 1280)
+width_multiplier = 0.5
+classes = ['other', 'grass', 'lane_marker']
+model = FastSCNN(in_channels, spatial_dim, width_multiplier, len(classes)).to(device)
 load_params(model, './models/fast_scnn_params.pt')
 torch.no_grad()
 
@@ -45,7 +49,7 @@ while cap.isOpened():
         break
     
     # Resize->BGR-OpenCV-Image->RGB-PIL-Image->Tensor
-    frame = cv2.resize(frame, (1280, 720))
+    frame = cv2.resize(frame, (int(spatial_dim[1]), int(spatial_dim[0])))
     img = Image.fromarray(np.uint8(cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)))
     img_to_tensor = transforms.Compose([
         transforms.ToTensor(),
