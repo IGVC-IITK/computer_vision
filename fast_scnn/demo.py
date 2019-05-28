@@ -14,7 +14,7 @@ import numpy as np
 from models.fast_scnn import FastSCNN
 
 # Custom Utilities
-from utils.common_utils import load_model
+from utils.common_utils import load_params
 
 # For profiling performance
 import time
@@ -27,8 +27,8 @@ print('Device name:', torch.cuda.get_device_properties(device).name)
 print('Device id:  ', device)
 
 # Loading model and parameters
-model = FastSCNN(in_channel=1, width_multiplier=0.5, num_classes=2).to(device)
-load_model(model, './model_gray')
+model = FastSCNN(in_channels=3, width_multiplier=0.5, num_classes=3).to(device)
+load_params(model, './models/fast_scnn_params.pt')
 torch.no_grad()
 
 # Opening test video
@@ -44,11 +44,9 @@ while cap.isOpened():
     if not ret:
         break
     
-    # BGR->Gray->Resize->Blur->PIL-Image->Tensor
-    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    frame = cv2.resize(frame, (640, 480))
-    frame = cv2.GaussianBlur(frame, (5, 5), 3, 3)
-    img = Image.fromarray(np.uint8(frame))
+    # Resize->BGR-OpenCV-Image->RGB-PIL-Image->Tensor
+    frame = cv2.resize(frame, (1280, 720))
+    img = Image.fromarray(np.uint8(cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)))
     img_to_tensor = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.5], std=[0.5])
@@ -56,15 +54,17 @@ while cap.isOpened():
     img = img_to_tensor(img).unsqueeze(0).to(device)
 
     # Getting output from model
-    output = torch.nn.Softmax2d()(model(img)).detach().cpu()
+    output = model(img)
 
     # Select one of the below for probabilistic or deterministic mask respectively.
-    label = (output[0, 1, :, :].numpy()*255.0).astype(np.uint8)
-    # label = (torch.argmax(output, 1).numpy()[0]*255).astype(np.uint8)
+    # predictions = (torch.nn.Softmax2d()(output)[0, 2, :, :].detach().cpu().numpy()*255.0).astype(np.uint8)
+    predictions = torch.argmax(output, 1).detach().cpu().numpy().astype(np.uint8)[0]*127
 
-    cv2.imshow('Input',  frame)
-    cv2.imshow('Output', label)
     
+    # Displaying output
+    cv2.imshow('Input', frame)
+    cv2.imshow('Output', predictions)
+
     # Read key presses and perform actions
     key = cv2.waitKey(1)
     if key == ord(' '):
@@ -73,7 +73,7 @@ while cap.isOpened():
         break
     elif key == ord('s'):
         cv2.imwrite('input.png', frame)
-        cv2.imwrite('output.png', label)
+        cv2.imwrite('output.png', predictions)
     elif key == ord('p'):
         print(output)
     num_frames = num_frames + 1

@@ -178,7 +178,7 @@ class Classifier(nn.Module):
             DSConvBlock(round(128*alpha), round(128*alpha), kernel_size=3, stride=1, padding=1, dilation=1),
             nn.Dropout2d(dropout_prob),
             nn.Conv2d(round(128*alpha), num_classes, kernel_size=1, stride=1, padding=0, groups=1, bias=False),
-            nn.BatchNorm2d(2)
+            nn.BatchNorm2d(num_classes)
         )
         
     def forward(self, x):
@@ -191,11 +191,11 @@ class Classifier(nn.Module):
 
 
 class FastSCNN(nn.Module):
-    def __init__(self, in_channel, width_multiplier, num_classes, dropout_prob=0.5):
+    def __init__(self, in_channels, width_multiplier, num_classes, dropout_prob=0.5):
         super().__init__()
         # alpha is the width_multiplier as described in the MobileNets paper
         alpha = width_multiplier
-        self.learning_to_downsample = LearningToDownsample(in_channel, alpha)
+        self.learning_to_downsample = LearningToDownsample(in_channels, alpha)
         self.global_feature_extractor = GlobalFeatureExtractor(alpha)
         self.feature_fusion = FeatureFusion(alpha)
         self.classifier = Classifier(alpha, num_classes, dropout_prob)
@@ -206,6 +206,4 @@ class FastSCNN(nn.Module):
         y = self.global_feature_extractor(x)
         x = self.feature_fusion(x, y)
         x = self.classifier(x)
-        x = F.interpolate(x, spatial_dim, mode='bilinear', align_corners=True)
         return x
-

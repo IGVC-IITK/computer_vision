@@ -18,31 +18,34 @@ import sys
 
 
 class IGVCDataset(torch.utils.data.Dataset):
-    def __init__(self, imgs_dir, labels_dir, transform=None):
-        self.imgs_dir = imgs_dir
-        self.labels_dir = labels_dir
+    def __init__(self, dataset_dir, transform=None):
+        self.input_paths = []
+        self.label_paths = []
         self.transform = transform
-        self.files_names = os.listdir(imgs_dir)
-        
-    def __len__(self):
-        return len(self.files_names)
-    
-    def __getitem__(self, idx):
-        img_path = os.path.join(self.imgs_dir, self.files_names[idx])
-        label_path = os.path.join(self.labels_dir, self.files_names[idx])
-        
-        img = Image.open(img_path).convert('RGB')
-        label = Image.open(label_path).convert('1')
-        
-        img = img.filter(PIL.ImageFilter.BLUR)
-        seed = random.randrange(sys.maxsize)
-        img = transforms.Grayscale(num_output_channels=1)(img)
-        if self.transform:
-            random.seed(seed)
-            img = self.transform(img)
-            random.seed(seed)
-            label = self.transform(label)
-        
-        img = transforms.Normalize(mean=[0.5], std=[0.5])(img)
-        return img, label
+        # Assumes that the dataset_dir contains subdirectories with folders
+        # named 'inputs' and 'labels', where each pair contains .jpg images in
+        # the 'inputs' folder and corresponding .png images (with the same
+        # name) in the 'labels' folder
+        for root, dirs, files in os.walk(dataset_dir):
+            if root[-6:] == 'inputs':
+                for file in files:
+                    if file[-4:] == '.jpg':
+                        self.input_paths.append(os.path.join(root, file))
+                        self.label_paths.append(os.path.join(root[:-6]+'labels', file[:-4]+'.png'))
 
+    def __len__(self):
+        return len(self.input_paths)
+
+    def __getitem__(self, idx):
+        input_img = Image.open(self.input_paths[idx]).convert('RGB')
+        label_img = Image.open(self.label_paths[idx]).convert('P')
+        seed = random.randrange(sys.maxsize)
+        if self.transform['inputs']:
+            random.seed(seed)
+            input_img = self.transform['inputs'](input_img)
+        if self.transform['labels']:
+            random.seed(seed)
+            label_img = self.transform['labels'](label_img)
+            label_img = torch.round(label_img*255.0).long()
+
+        return input_img, label_img
