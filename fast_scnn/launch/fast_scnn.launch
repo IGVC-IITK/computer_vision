@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<launch>
+
+	<!-- Setting Parameters -->
+	<param name="in_channels" type="int" value="3"/>
+	<param name="in_h" type="int" value="720"/>
+	<param name="in_w" type="int" value="1280"/>
+	<param name="num_classes" type="int" value="3"/>
+	<param name="out_h" type="int" value="90"/>
+	<param name="out_w" type="int" value="160"/>
+	<param name="overwrite_engine" type="bool" value="false"/>
+
+	<!-- Running Fast-SCNN -->
+	<node name="fast_scnn_node" pkg="fast_scnn" type="fast_scnn_node" output="screen">
+		<remap from="image" to="/zed/left/image_rect_color"/>
+	</node>
+
+</launch>

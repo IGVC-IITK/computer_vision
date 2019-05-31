@@ -4,3 +4,12 @@
 # Jupyter Notebook checkpoint files
 *-checkpoint.ipynb
 *-checkpoint.py
+
+# FAST-SCNN Training Data
+fast_scnn/preprocessing/data/
+fast_scnn/preprocessing/data_train/
+fast_scnn/preprocessing/data_val/
+fast_scnn/preprocessing/data_test/
+
+# Fast-SCNN TensorRT device-specific inference engine (should be re-created for every device)
+fast_scnn/preprocessing/models/fast_scnn.trt_engine
