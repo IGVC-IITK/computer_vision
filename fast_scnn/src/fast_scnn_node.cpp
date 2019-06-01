@@ -257,14 +257,17 @@ void imageCallback(const sensor_msgs::ImageConstPtr& msg, IExecutionContext* con
 		return;
 	}
 	float* network_input = new float[in_channels*in_spatial_dim.area()];
-	for (int y = 0; y < in_spatial_dim.height; y++)
-		for (int x = 0; x < in_spatial_dim.width; x++)
-			for (int current_channel = 0; current_channel < in_channels; current_channel++)
-			{
-				// Re-ordering, conversion to float and normalization
-				network_input[current_channel*in_spatial_dim.area() + y*in_spatial_dim.width + x] = 
-				(((float)(image_in.at<cv::Vec3b>(y, x)[current_channel]))/255.0 - 0.5)*2.0;
-			}
+	cv::Mat image_in_split[in_channels];
+	cv::split(image_in, image_in_split);
+	for (int current_channel = 0; current_channel < in_channels; current_channel++)
+	{
+		// Re-ordering, conversion to float and normalization
+		cv::Mat image_in_split_f;
+		image_in_split[current_channel].convertTo(image_in_split_f, CV_32FC1);
+		image_in_split_f = (image_in_split_f/255.0 - 0.5)*2.0;
+		std::memcpy(network_input + current_channel*in_spatial_dim.area(), 
+					image_in_split_f.data, in_spatial_dim.area()*sizeof(float));
+	}
 
 	// Performing inference
 	float* network_output = new float[num_classes*out_spatial_dim.area()];
