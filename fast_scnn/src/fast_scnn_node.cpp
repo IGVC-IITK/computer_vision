@@ -330,7 +330,8 @@ bool onnxToTRTModel(const std::string& modelFile,	// name of the onnx model
 	// create the builder
 	IBuilder* builder = createInferBuilder(gLogger.getTRTLogger());
 	assert(builder != nullptr);
-	INetworkDefinition* network = builder->createNetwork();
+	const auto explicitBatch = 1U << static_cast<uint32_t>(NetworkDefinitionCreationFlag::kEXPLICIT_BATCH);
+	INetworkDefinition* network = builder->createNetworkV2(explicitBatch);
 
 	auto parser = nvonnxparser::createParser(*network, gLogger.getTRTLogger());
 
@@ -403,7 +404,7 @@ void doInference(IExecutionContext& context, float* input, int input_size,
 
 	// DMA the input to the GPU,  execute the batch asynchronously, and DMA it back:
 	CHECK(cudaMemcpyAsync(buffers[inputIndex], input, batchSize*input_size_*sizeof(float), cudaMemcpyHostToDevice, stream));
-	context.enqueue(batchSize, buffers, stream, nullptr);
+	context.enqueueV2(buffers, stream, nullptr);
 	CHECK(cudaMemcpyAsync(output, buffers[outputIndex], batchSize*output_size_*sizeof(float), cudaMemcpyDeviceToHost, stream));
 	cudaStreamSynchronize(stream);
 
